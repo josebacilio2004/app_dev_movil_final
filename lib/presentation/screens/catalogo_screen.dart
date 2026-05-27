@@ -3,6 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gestor_invetarios_pedidos_app/core/theme/app_theme.dart';
 import 'package:gestor_invetarios_pedidos_app/data/models/catalogo_producto.dart';
 import 'package:gestor_invetarios_pedidos_app/presentation/providers/catalogo_provider.dart';
+import 'package:gestor_invetarios_pedidos_app/presentation/providers/cart_provider.dart';
+import 'package:gestor_invetarios_pedidos_app/presentation/screens/cart_screen.dart';
+import 'package:gestor_invetarios_pedidos_app/data/services/google_drive_service.dart';
+import 'package:image_picker/image_picker.dart';
 import 'dart:async';
 
 class CatalogoScreen extends ConsumerStatefulWidget {
@@ -40,9 +44,15 @@ class _CatalogoScreenState extends ConsumerState<CatalogoScreen> with SingleTick
     'Abrasivos y Consumibles': Color(0xFFEC4899),
   };
 
+  static const Map<String, String> _imageHeaders = {
+    'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.0 Mobile/15E148 Safari/604.1',
+  };
+
   @override
   void initState() {
     super.initState();
+    // Sincronizar el texto del controlador con el estado global de búsqueda
+    _searchController.text = ref.read(searchQueryProvider);
     _filterAnimController = AnimationController(
       duration: const Duration(milliseconds: 300),
       vsync: this,
@@ -58,6 +68,14 @@ class _CatalogoScreenState extends ConsumerState<CatalogoScreen> with SingleTick
     _searchController.dispose();
     _debounce?.cancel();
     _filterAnimController.dispose();
+    // Limpiar el estado de búsqueda y filtros al salir de la pantalla para evitar estados persistentes residuales
+    Future.microtask(() {
+      if (ref.context.mounted) {
+        ref.read(searchQueryProvider.notifier).state = '';
+        ref.read(selectedCategoryProvider.notifier).state = null;
+        ref.read(soloDisponiblesProvider.notifier).state = false;
+      }
+    });
     super.dispose();
   }
 
@@ -127,6 +145,28 @@ class _CatalogoScreenState extends ConsumerState<CatalogoScreen> with SingleTick
           ],
         ),
         actions: [
+          IconButton(
+            icon: Badge(
+              label: Text(
+                '${ref.watch(cartCountProvider)}',
+                style: const TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.bold),
+              ),
+              isLabelVisible: ref.watch(cartCountProvider) > 0,
+              backgroundColor: AppTheme.accentOrange,
+              child: const Icon(
+                Icons.shopping_cart_rounded,
+                size: 22,
+              ),
+            ),
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => const CartScreen(),
+                ),
+              );
+            },
+            tooltip: 'Ver Carrito',
+          ),
           IconButton(
             icon: Icon(
               _isGridView ? Icons.view_list_rounded : Icons.grid_view_rounded,
@@ -359,7 +399,7 @@ class _CatalogoScreenState extends ConsumerState<CatalogoScreen> with SingleTick
           crossAxisCount: 2,
           crossAxisSpacing: 12,
           mainAxisSpacing: 12,
-          childAspectRatio: 0.65,
+          childAspectRatio: 0.54,
         ),
         itemCount: productos.length,
         itemBuilder: (context, index) {
@@ -438,6 +478,7 @@ class _CatalogoScreenState extends ConsumerState<CatalogoScreen> with SingleTick
                         borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
                         child: Image.network(
                           imageUrl,
+                          headers: _imageHeaders,
                           width: double.infinity,
                           height: double.infinity,
                           fit: BoxFit.cover,
@@ -562,6 +603,49 @@ class _CatalogoScreenState extends ConsumerState<CatalogoScreen> with SingleTick
                           ),
                         ],
                       ),
+                      const SizedBox(height: 8),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 28,
+                        child: ElevatedButton(
+                          onPressed: !producto.disponible
+                              ? null
+                              : () {
+                                  ref.read(cartProvider.notifier).addItem(producto);
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text('${producto.nombre} agregado al carrito.'),
+                                      backgroundColor: AppTheme.successGreen,
+                                      duration: const Duration(seconds: 1),
+                                    ),
+                                  );
+                                },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppTheme.accentOrange,
+                            disabledBackgroundColor: Colors.white.withOpacity(0.05),
+                            padding: EdgeInsets.zero,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                          child: const Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.add_shopping_cart_rounded, size: 12, color: Colors.white),
+                              SizedBox(width: 4),
+                              Text(
+                                'AL CARRITO',
+                                style: TextStyle(
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w900,
+                                  color: Colors.white,
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -617,6 +701,7 @@ class _CatalogoScreenState extends ConsumerState<CatalogoScreen> with SingleTick
                       children: [
                         Image.network(
                           imageUrl,
+                          headers: _imageHeaders,
                           width: 110,
                           height: double.infinity,
                           fit: BoxFit.cover,
@@ -762,13 +847,35 @@ class _CatalogoScreenState extends ConsumerState<CatalogoScreen> with SingleTick
                                   ),
                                 ],
                               ),
-                              Text(
-                                'x ${producto.unidad}',
-                                style: const TextStyle(
-                                  color: AppTheme.textGray,
-                                  fontSize: 8.5,
-                                  fontWeight: FontWeight.w600,
-                                ),
+                              Row(
+                                children: [
+                                  Text(
+                                    'x ${producto.unidad}  ',
+                                    style: const TextStyle(
+                                      color: AppTheme.textGray,
+                                      fontSize: 8.5,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(Icons.add_shopping_cart_rounded, size: 18, color: AppTheme.accentOrange),
+                                    onPressed: !producto.disponible
+                                        ? null
+                                        : () {
+                                            ref.read(cartProvider.notifier).addItem(producto);
+                                            ScaffoldMessenger.of(context).showSnackBar(
+                                              SnackBar(
+                                                content: Text('${producto.nombre} agregado al carrito.'),
+                                                backgroundColor: AppTheme.successGreen,
+                                                duration: const Duration(seconds: 1),
+                                              ),
+                                            );
+                                          },
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints(),
+                                    tooltip: 'Agregar al Carrito',
+                                  ),
+                                ],
                               ),
                             ],
                           ),
@@ -828,6 +935,7 @@ class _CatalogoScreenState extends ConsumerState<CatalogoScreen> with SingleTick
                         borderRadius: BorderRadius.circular(16),
                         child: Image.network(
                           imageUrl,
+                          headers: _imageHeaders,
                           width: 64,
                           height: 64,
                           fit: BoxFit.cover,
@@ -1024,6 +1132,30 @@ class _CatalogoScreenState extends ConsumerState<CatalogoScreen> with SingleTick
                       ),
                     ],
                   ),
+                  const SizedBox(height: 20),
+                  if (producto.disponible) ...[
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: () {
+                          ref.read(cartProvider.notifier).addItem(producto);
+                          Navigator.pop(context);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('"${producto.nombre}" agregado al carrito.'),
+                              backgroundColor: AppTheme.successGreen,
+                            ),
+                          );
+                        },
+                        icon: const Icon(Icons.add_shopping_cart_rounded),
+                        label: const Text('AGREGAR AL CARRITO'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.accentOrange,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                        ),
+                      ),
+                    ),
+                  ],
                   if (widget.userRole == 'admin') ...[
                     const SizedBox(height: 30),
                     Row(
@@ -1213,6 +1345,10 @@ class _AddEditProductDialogState extends ConsumerState<_AddEditProductDialog> {
   final _newCharKeyCtrl = TextEditingController();
   final _newCharValCtrl = TextEditingController();
 
+  bool _isUploadingToDrive = false;
+  bool _showAdvancedDriveSettings = false;
+  late TextEditingController _customAppsScriptUrlCtrl;
+
   static const List<String> _categorias = [
     'Herramientas Manuales',
     'Herramientas Eléctricas',
@@ -1237,6 +1373,7 @@ class _AddEditProductDialogState extends ConsumerState<_AddEditProductDialog> {
     _precioMayCtrl = TextEditingController(text: p?.precioMayorista != null ? p!.precioMayorista.toStringAsFixed(2) : '');
     _imagenUrlCtrl = TextEditingController(text: p?.imagenUrl ?? '');
     _tagsCtrl = TextEditingController(text: p?.tags.join(', ') ?? '');
+    _customAppsScriptUrlCtrl = TextEditingController(text: GoogleDriveService.appsScriptUrl);
     
     _categoria = p?.categoria ?? _categorias.first;
     _disponible = p?.disponible ?? true;
@@ -1258,7 +1395,65 @@ class _AddEditProductDialogState extends ConsumerState<_AddEditProductDialog> {
     _tagsCtrl.dispose();
     _newCharKeyCtrl.dispose();
     _newCharValCtrl.dispose();
+    _customAppsScriptUrlCtrl.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickAndUploadImage() async {
+    final ImagePicker picker = ImagePicker();
+    try {
+      final XFile? image = await picker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 80,
+      );
+
+      if (image == null) return;
+
+      setState(() {
+        _isUploadingToDrive = true;
+      });
+
+      final bytes = await image.readAsBytes();
+      final filename = image.name;
+
+      final driveService = GoogleDriveService();
+      final resultUrl = await driveService.uploadImage(
+        bytes,
+        filename,
+        customUrl: _customAppsScriptUrlCtrl.text,
+      );
+
+      if (resultUrl != null) {
+        setState(() {
+          _imagenUrlCtrl.text = resultUrl;
+          GoogleDriveService.appsScriptUrl = _customAppsScriptUrlCtrl.text;
+        });
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('¡Imagen subida correctamente a Google Drive!'),
+              backgroundColor: AppTheme.successGreen,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al subir a Drive: $e'),
+            backgroundColor: AppTheme.errorRed,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isUploadingToDrive = false;
+        });
+      }
+    }
   }
 
   void _addCaracteristica() {
@@ -1450,7 +1645,102 @@ class _AddEditProductDialogState extends ConsumerState<_AddEditProductDialog> {
                         ],
                       ),
                       const SizedBox(height: 12),
-                      _buildTextField(_imagenUrlCtrl, 'URL de la Imagen', 'https://images.unsplash.com/...'),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Imagen del Producto',
+                            style: TextStyle(color: AppTheme.textGray, fontSize: 10, fontWeight: FontWeight.bold),
+                          ),
+                          const SizedBox(height: 6),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _buildTextField(_imagenUrlCtrl, 'URL de la Imagen', 'https://images.unsplash.com/...'),
+                              ),
+                              const SizedBox(width: 8),
+                              SizedBox(
+                                height: 48,
+                                child: ElevatedButton.icon(
+                                  onPressed: _isUploadingToDrive ? null : _pickAndUploadImage,
+                                  icon: _isUploadingToDrive 
+                                      ? const SizedBox(
+                                          width: 16,
+                                          height: 16,
+                                          child: CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation<Color>(Colors.white)),
+                                        )
+                                      : const Icon(Icons.cloud_upload_rounded, size: 18),
+                                  label: Text(_isUploadingToDrive ? 'SUBIENDO...' : 'DRIVE'),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: AppTheme.surfaceDark,
+                                    foregroundColor: AppTheme.accentOrange,
+                                    side: BorderSide(color: AppTheme.accentOrange.withOpacity(0.5)),
+                                    elevation: 0,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          if (_imagenUrlCtrl.text.isNotEmpty) ...[
+                            const SizedBox(height: 8),
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: Image.network(
+                                _imagenUrlCtrl.text,
+                                height: 80,
+                                width: double.infinity,
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) => Container(
+                                  height: 40,
+                                  color: Colors.white.withOpacity(0.02),
+                                  child: const Center(
+                                    child: Text(
+                                      'Vista previa no disponible',
+                                      style: TextStyle(color: AppTheme.textGray, fontSize: 10),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                          const SizedBox(height: 6),
+                          InkWell(
+                            onTap: () {
+                              setState(() {
+                                _showAdvancedDriveSettings = !_showAdvancedDriveSettings;
+                              });
+                            },
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  _showAdvancedDriveSettings ? Icons.keyboard_arrow_up_rounded : Icons.keyboard_arrow_down_rounded,
+                                  size: 16,
+                                  color: AppTheme.accentOrange,
+                                ),
+                                const SizedBox(width: 4),
+                                const Text(
+                                  'Configuración Avanzada de Google Drive',
+                                  style: TextStyle(color: AppTheme.accentOrange, fontSize: 10, fontWeight: FontWeight.bold),
+                                ),
+                              ],
+                            ),
+                          ),
+                          if (_showAdvancedDriveSettings) ...[
+                            const SizedBox(height: 8),
+                            _buildTextField(
+                              _customAppsScriptUrlCtrl,
+                              'URL de Google Apps Script Web App',
+                              'https://script.google.com/macros/s/.../exec',
+                            ),
+                            const SizedBox(height: 4),
+                            const Text(
+                              'Pega la URL desplegada de tu Google Apps Script. Las fotos seleccionadas se guardarán en tu Drive.',
+                              style: TextStyle(color: AppTheme.textGray, fontSize: 8),
+                            ),
+                          ],
+                        ],
+                      ),
                       const SizedBox(height: 12),
                       _buildTextField(_tagsCtrl, 'Etiquetas (separadas por comas)', 'herramientas, rotomartillo, dewalt'),
                       const SizedBox(height: 16),
