@@ -1416,6 +1416,9 @@ class _AddEditProductDialogState extends ConsumerState<_AddEditProductDialog> {
       final bytes = await image.readAsBytes();
       final filename = image.name;
 
+      // Persistir la URL ingresada para que se guarde en el dispositivo
+      await GoogleDriveService.persistUrl(_customAppsScriptUrlCtrl.text);
+
       final driveService = GoogleDriveService();
       final resultUrl = await driveService.uploadImage(
         bytes,
@@ -1426,7 +1429,6 @@ class _AddEditProductDialogState extends ConsumerState<_AddEditProductDialog> {
       if (resultUrl != null) {
         setState(() {
           _imagenUrlCtrl.text = resultUrl;
-          GoogleDriveService.appsScriptUrl = _customAppsScriptUrlCtrl.text;
         });
 
         if (mounted) {

@@ -1,12 +1,41 @@
 import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class GoogleDriveService {
+  static const String _prefKey = 'google_drive_apps_script_url';
+
   // URL por defecto del Google Apps Script Web App. El usuario puede cambiarla aquí o configurarla.
-  static String appsScriptUrl = 'https://script.google.com/macros/s/AKfycbyt9DnSN7Du9wET6Lc6B1WonNWMkFWua0XCyyUdtDtrDpkd8Jj5alyc_xMqyzccrcQj/exec';
+  static String appsScriptUrl = 'https://script.google.com/macros/s/AKfycbyT9DnSN7Du9wET6Lc6B1WonNWMkFWua0XCyyUdtDtrDpkd8Jj5alyc_xMqyzccrcQj/exec';
 
   final Dio _dio = Dio();
+
+  /// Carga la URL de SharedPreferences.
+  static Future<void> loadPersistedUrl() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final savedUrl = prefs.getString(_prefKey);
+      if (savedUrl != null && savedUrl.trim().isNotEmpty) {
+        appsScriptUrl = savedUrl.trim();
+        debugPrint('🌐 Google Drive Service: URL cargada desde persistencia: $appsScriptUrl');
+      }
+    } catch (e) {
+      debugPrint('❌ Google Drive Service: Error al cargar URL persistida: $e');
+    }
+  }
+
+  /// Guarda la URL en SharedPreferences.
+  static Future<void> persistUrl(String url) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_prefKey, url.trim());
+      appsScriptUrl = url.trim();
+      debugPrint('🌐 Google Drive Service: URL guardada en persistencia: $appsScriptUrl');
+    } catch (e) {
+      debugPrint('❌ Google Drive Service: Error al guardar URL en persistencia: $e');
+    }
+  }
 
   /// Sube una imagen a Google Drive a través del script middleware.
   /// Retorna la URL pública de visualización del archivo si tiene éxito.
