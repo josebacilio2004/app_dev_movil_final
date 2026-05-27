@@ -47,6 +47,8 @@ class _CatalogoScreenState extends ConsumerState<CatalogoScreen> with SingleTick
   @override
   void initState() {
     super.initState();
+    // Sincronizar el texto del controlador con el estado global de búsqueda
+    _searchController.text = ref.read(searchQueryProvider);
     _filterAnimController = AnimationController(
       duration: const Duration(milliseconds: 300),
       vsync: this,
@@ -62,6 +64,14 @@ class _CatalogoScreenState extends ConsumerState<CatalogoScreen> with SingleTick
     _searchController.dispose();
     _debounce?.cancel();
     _filterAnimController.dispose();
+    // Limpiar el estado de búsqueda y filtros al salir de la pantalla para evitar estados persistentes residuales
+    Future.microtask(() {
+      if (ref.context.mounted) {
+        ref.read(searchQueryProvider.notifier).state = '';
+        ref.read(selectedCategoryProvider.notifier).state = null;
+        ref.read(soloDisponiblesProvider.notifier).state = false;
+      }
+    });
     super.dispose();
   }
 
