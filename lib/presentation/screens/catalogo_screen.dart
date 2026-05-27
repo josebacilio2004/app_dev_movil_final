@@ -40,6 +40,10 @@ class _CatalogoScreenState extends ConsumerState<CatalogoScreen> with SingleTick
     'Abrasivos y Consumibles': Color(0xFFEC4899),
   };
 
+  static const Map<String, String> _imageHeaders = {
+    'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.0 Mobile/15E148 Safari/604.1',
+  };
+
   @override
   void initState() {
     super.initState();
@@ -438,6 +442,7 @@ class _CatalogoScreenState extends ConsumerState<CatalogoScreen> with SingleTick
                         borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
                         child: Image.network(
                           imageUrl,
+                          headers: _imageHeaders,
                           width: double.infinity,
                           height: double.infinity,
                           fit: BoxFit.cover,
@@ -617,6 +622,7 @@ class _CatalogoScreenState extends ConsumerState<CatalogoScreen> with SingleTick
                       children: [
                         Image.network(
                           imageUrl,
+                          headers: _imageHeaders,
                           width: 110,
                           height: double.infinity,
                           fit: BoxFit.cover,
@@ -828,6 +834,7 @@ class _CatalogoScreenState extends ConsumerState<CatalogoScreen> with SingleTick
                         borderRadius: BorderRadius.circular(16),
                         child: Image.network(
                           imageUrl,
+                          headers: _imageHeaders,
                           width: 64,
                           height: 64,
                           fit: BoxFit.cover,
