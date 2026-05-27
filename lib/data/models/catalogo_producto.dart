@@ -14,6 +14,7 @@ class CatalogoProducto {
   final bool disponible;
   final int stockMinimo;
   final List<String> tags;
+  final List<String> caracteristicas;
   final String? codigoSku;
   final DateTime? fechaCreacion;
 
@@ -31,6 +32,7 @@ class CatalogoProducto {
     this.disponible = true,
     this.stockMinimo = 5,
     this.tags = const [],
+    this.caracteristicas = const [],
     this.codigoSku,
     this.fechaCreacion,
   });
@@ -50,6 +52,7 @@ class CatalogoProducto {
       disponible: json['disponible'] ?? true,
       stockMinimo: json['stock_minimo'] ?? 5,
       tags: List<String>.from(json['tags'] ?? []),
+      caracteristicas: List<String>.from(json['caracteristicas'] ?? []),
       codigoSku: json['codigo_sku'],
       fechaCreacion: json['fecha_creacion'] != null
           ? (json['fecha_creacion'] is Timestamp
@@ -73,6 +76,7 @@ class CatalogoProducto {
       'disponible': disponible,
       'stock_minimo': stockMinimo,
       'tags': tags,
+      'caracteristicas': caracteristicas,
       'codigo_sku': codigoSku,
       'fecha_creacion': fechaCreacion?.toIso8601String() ?? DateTime.now().toIso8601String(),
       // Campo auxiliar para búsqueda: nombre en minúsculas sin acentos

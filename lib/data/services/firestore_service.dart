@@ -64,6 +64,15 @@ class FirestoreService {
     return {'id': ref.id, ...data};
   }
 
+  Future<Map<String, dynamic>> updateCatalogoProducto(String id, Map<String, dynamic> data) async {
+    await _db.collection('catalogo_productos').doc(id).update(data);
+    return {'id': id, ...data};
+  }
+
+  Future<void> deleteCatalogoProducto(String id) async {
+    await _db.collection('catalogo_productos').doc(id).delete();
+  }
+
   // ============================================================
   // DISTRIBUIDORES
   // ============================================================

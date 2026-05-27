@@ -14,6 +14,11 @@ class SeederInitializer {
     _hasRun = true;
 
     try {
+      // Limpiar sesiones huérfanas en el cliente web
+      try {
+        await FirebaseAuth.instance.signOut();
+      } catch (_) {}
+
       final service = FirestoreService();
       final alreadySeeded = await service.isCatalogoSeeded();
       
@@ -43,7 +48,7 @@ class SeederInitializer {
         {
           'nombre': 'Admin Prueba',
           'usuario': 'admin_aly',
-          'email': 'admin@comercializadoraaly.com',
+          'email': 'admin_aly@comercializadoraaly.com',
           'rol': 'admin',
           'activo': true,
         },
