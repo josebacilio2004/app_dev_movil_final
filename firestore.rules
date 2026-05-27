@@ -13,7 +13,7 @@ service cloud.firestore {
     }
 
     match /users/{userId} {
-      allow read: if !isAuth() || (isAuth() && (request.auth.uid == userId || hasRole('admin')));
+      allow read: if true;
       allow write: if !isAuth() || hasRole('admin');
       // Permitir crear perfil durante seeder (modo desarrollo)
       allow create: if true;
