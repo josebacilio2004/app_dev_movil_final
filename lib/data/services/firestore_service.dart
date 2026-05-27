@@ -7,33 +7,65 @@ class FirestoreService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
   // ============================================================
-  // PRODUCTOS (Inventario principal)
+  // PRODUCTOS (Inventario principal adaptado a catalogo_productos)
   // ============================================================
   Future<List<Map<String, dynamic>>> getProductos() async {
-    final snapshot = await _db.collection('productos').get();
-    return snapshot.docs.map((doc) => {'id': doc.id, ...doc.data()}).toList();
+    final snapshot = await _db.collection('catalogo_productos').get();
+    return snapshot.docs.map((doc) {
+      final data = doc.data();
+      return {
+        'id': doc.id,
+        ...data,
+        'tipo_producto': data['categoria'] ?? '',
+        'precio_referencia': data['precio_unitario'] ?? 0.0,
+      };
+    }).toList();
   }
 
   Future<Map<String, dynamic>> createProducto(Map<String, dynamic> data) async {
-    final ref = await _db.collection('productos').add({
+    final dataAdaptada = {
       ...data,
-      'created_at': FieldValue.serverTimestamp(),
-    });
+      'categoria': data['tipo_producto'] ?? 'Otros',
+      'subcategoria': data['subcategoria'] ?? 'General',
+      'marca': data['marca'] ?? 'Sin marca',
+      'unidad': data['unidad'] ?? 'unidad',
+      'stock_minimo': data['stock_minimo'] ?? 5,
+      'precio_unitario': data['precio_referencia'] ?? 0.0,
+      'precio_mayorista': data['precio_mayorista'] ?? (data['precio_referencia'] ?? 0.0) * 0.8,
+      'disponible': data['disponible'] ?? true,
+      'tags': data['tags'] ?? [],
+      'caracteristicas': data['caracteristicas'] ?? [],
+      'fecha_creacion': FieldValue.serverTimestamp(),
+    };
+    final ref = await _db.collection('catalogo_productos').add(dataAdaptada);
     return {'id': ref.id, ...data};
   }
 
   Future<Map<String, dynamic>> updateProducto(String id, Map<String, dynamic> data) async {
-    await _db.collection('productos').doc(id).update(data);
+    final dataAdaptada = {
+      ...data,
+      if (data.containsKey('tipo_producto')) 'categoria': data['tipo_producto'],
+      if (data.containsKey('precio_referencia')) 'precio_unitario': data['precio_referencia'],
+    };
+    await _db.collection('catalogo_productos').doc(id).update(dataAdaptada);
     return {'id': id, ...data};
   }
 
   Future<void> deleteProducto(String id) async {
-    await _db.collection('productos').doc(id).delete();
+    await _db.collection('catalogo_productos').doc(id).delete();
   }
 
   Stream<List<Map<String, dynamic>>> productosStream() {
-    return _db.collection('productos').snapshots().map(
-      (snapshot) => snapshot.docs.map((doc) => {'id': doc.id, ...doc.data()}).toList(),
+    return _db.collection('catalogo_productos').snapshots().map(
+      (snapshot) => snapshot.docs.map((doc) {
+        final data = doc.data();
+        return {
+          'id': doc.id,
+          ...data,
+          'tipo_producto': data['categoria'] ?? '',
+          'precio_referencia': data['precio_unitario'] ?? 0.0,
+        };
+      }).toList(),
     );
   }
 
@@ -277,26 +309,45 @@ class FirestoreService {
   // SEEDER — Ejecutar escritura masiva con batch
   // ============================================================
   Future<int> seedCatalogoProductos(List<Map<String, dynamic>> productos) async {
-    final batch = _db.batch();
+    debugPrint('🗑️ Seeder: Limpiando colección antigua "productos" y "catalogo_productos"...');
+    
+    // Limpiar colección antigua de productos
+    final productosSnapshot = await _db.collection('productos').get();
+    final batchProd = _db.batch();
+    for (final doc in productosSnapshot.docs) {
+      batchProd.delete(doc.reference);
+    }
+    await batchProd.commit();
+
+    // Limpiar catalogo_productos
+    final catalogoSnapshot = await _db.collection('catalogo_productos').get();
+    final batchCat = _db.batch();
+    for (final doc in catalogoSnapshot.docs) {
+      batchCat.delete(doc.reference);
+    }
+    await batchCat.commit();
+
+    debugPrint('🌱 Seeder: Cargando 45 productos del catálogo en Firestore...');
+    final batchInsert = _db.batch();
     int count = 0;
 
     for (final producto in productos) {
       final ref = _db.collection('catalogo_productos').doc();
-      batch.set(ref, {
+      batchInsert.set(ref, {
         ...producto,
         'fecha_creacion': FieldValue.serverTimestamp(),
       });
       count++;
     }
 
-    await batch.commit();
-    debugPrint('✅ Seeder: $count productos del catálogo insertados en Firestore');
+    await batchInsert.commit();
+    debugPrint('✅ Seeder: $count productos del catálogo insertados de forma limpia en Firestore');
     return count;
   }
 
-  /// Verifica si el catálogo ya fue poblado
+  /// Verifica si el catálogo ya fue poblado con los 45 productos exactos
   Future<bool> isCatalogoSeeded() async {
-    final snapshot = await _db.collection('catalogo_productos').limit(1).get();
-    return snapshot.docs.isNotEmpty;
+    final snapshot = await _db.collection('catalogo_productos').get();
+    return snapshot.docs.length == 45;
   }
 }
