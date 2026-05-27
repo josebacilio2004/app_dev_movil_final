@@ -679,7 +679,7 @@ class _CatalogoScreenState extends ConsumerState<CatalogoScreen> with SingleTick
                                 Row(
                                   children: [
                                     Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
                                       decoration: BoxDecoration(
                                         color: color.withOpacity(0.12),
                                         borderRadius: BorderRadius.circular(4),
@@ -706,29 +706,29 @@ class _CatalogoScreenState extends ConsumerState<CatalogoScreen> with SingleTick
                                       ),
                                   ],
                                 ),
-                                const SizedBox(height: 6),
+                                const SizedBox(height: 4),
                                 Text(
                                   producto.nombre,
                                   style: const TextStyle(
                                     fontWeight: FontWeight.w700,
-                                    fontSize: 13,
+                                    fontSize: 12,
                                     color: Colors.white,
                                   ),
-                                  maxLines: 2,
+                                  maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                 ),
-                                const SizedBox(height: 2),
+                                const SizedBox(height: 1),
                                 Text(
                                   producto.marca,
                                   style: const TextStyle(
                                     color: AppTheme.textGray,
-                                    fontSize: 10,
+                                    fontSize: 9,
                                     fontWeight: FontWeight.w500,
                                   ),
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 10),
+                            const SizedBox(height: 6),
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               crossAxisAlignment: CrossAxisAlignment.end,
@@ -740,13 +740,13 @@ class _CatalogoScreenState extends ConsumerState<CatalogoScreen> with SingleTick
                                       'S/ ${producto.precioUnitario.toStringAsFixed(2)}',
                                       style: const TextStyle(
                                         fontWeight: FontWeight.w900,
-                                        fontSize: 14,
+                                        fontSize: 13,
                                         color: Colors.white,
                                       ),
                                     ),
-                                    const SizedBox(height: 2),
+                                    const SizedBox(height: 1),
                                     Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
                                       decoration: BoxDecoration(
                                         color: AppTheme.successGreen.withOpacity(0.1),
                                         borderRadius: BorderRadius.circular(4),
@@ -754,7 +754,7 @@ class _CatalogoScreenState extends ConsumerState<CatalogoScreen> with SingleTick
                                       child: Text(
                                         'Mayorista: S/ ${producto.precioMayorista.toStringAsFixed(2)}',
                                         style: const TextStyle(
-                                          fontSize: 8,
+                                          fontSize: 7.5,
                                           fontWeight: FontWeight.w800,
                                           color: AppTheme.successGreen,
                                         ),
@@ -766,7 +766,7 @@ class _CatalogoScreenState extends ConsumerState<CatalogoScreen> with SingleTick
                                   'x ${producto.unidad}',
                                   style: const TextStyle(
                                     color: AppTheme.textGray,
-                                    fontSize: 9,
+                                    fontSize: 8.5,
                                     fontWeight: FontWeight.w600,
                                   ),
                                 ),
