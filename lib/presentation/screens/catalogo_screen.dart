@@ -587,6 +587,7 @@ class _CatalogoScreenState extends ConsumerState<CatalogoScreen> with SingleTick
           onTap: () => _showProductDetail(producto),
           borderRadius: BorderRadius.circular(16),
           child: Container(
+            height: 120, // Altura fija para evitar el IntrinsicHeight y desbordamientos en Web
             decoration: BoxDecoration(
               color: AppTheme.surfaceDark,
               borderRadius: BorderRadius.circular(16),
@@ -601,183 +602,181 @@ class _CatalogoScreenState extends ConsumerState<CatalogoScreen> with SingleTick
             ),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(16),
-              child: IntrinsicHeight(
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    // Imagen lateral
-                    Container(
-                      width: 110,
-                      decoration: BoxDecoration(
-                        border: Border(
-                          right: BorderSide(color: Colors.white.withOpacity(0.04)),
-                        ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // Imagen lateral
+                  Container(
+                    width: 110,
+                    decoration: BoxDecoration(
+                      border: Border(
+                        right: BorderSide(color: Colors.white.withOpacity(0.04)),
                       ),
-                      child: Stack(
-                        children: [
-                          Image.network(
-                            imageUrl,
-                            width: 110,
-                            height: double.infinity,
-                            fit: BoxFit.cover,
-                            loadingBuilder: (context, child, loadingProgress) {
-                              if (loadingProgress == null) return child;
-                              return Container(
-                                color: Colors.white.withOpacity(0.03),
-                                child: const Center(
-                                  child: SizedBox(
-                                    width: 20,
-                                    height: 20,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      valueColor: AlwaysStoppedAnimation<Color>(AppTheme.accentOrange),
-                                    ),
+                    ),
+                    child: Stack(
+                      children: [
+                        Image.network(
+                          imageUrl,
+                          width: 110,
+                          height: double.infinity,
+                          fit: BoxFit.cover,
+                          loadingBuilder: (context, child, loadingProgress) {
+                            if (loadingProgress == null) return child;
+                            return Container(
+                              color: Colors.white.withOpacity(0.03),
+                              child: const Center(
+                                child: SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    valueColor: AlwaysStoppedAnimation<Color>(AppTheme.accentOrange),
                                   ),
                                 ),
-                              );
-                            },
-                            errorBuilder: (context, error, stackTrace) => Container(
-                              color: color.withOpacity(0.1),
-                              child: Center(
-                                child: Icon(
-                                  _categoryIcons[producto.categoria] ?? Icons.category_rounded,
-                                  color: color,
-                                  size: 28,
+                              ),
+                            );
+                          },
+                          errorBuilder: (context, error, stackTrace) => Container(
+                            color: color.withOpacity(0.1),
+                            child: Center(
+                              child: Icon(
+                                _categoryIcons[producto.categoria] ?? Icons.category_rounded,
+                                color: color,
+                                size: 28,
+                              ),
+                            ),
+                          ),
+                        ),
+                        if (!producto.disponible)
+                          Container(
+                            color: Colors.black.withOpacity(0.6),
+                            child: const Center(
+                              child: Text(
+                                'AGOTADO',
+                                style: TextStyle(
+                                  fontSize: 8,
+                                  fontWeight: FontWeight.w900,
+                                  color: AppTheme.errorRed,
+                                  letterSpacing: 1,
                                 ),
                               ),
                             ),
                           ),
-                          if (!producto.disponible)
-                            Container(
-                              color: Colors.black.withOpacity(0.6),
-                              child: const Center(
-                                child: Text(
-                                  'AGOTADO',
-                                  style: TextStyle(
-                                    fontSize: 8,
-                                    fontWeight: FontWeight.w900,
-                                    color: AppTheme.errorRed,
-                                    letterSpacing: 1,
+                      ],
+                    ),
+                  ),
+                  // Detalles a la derecha
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                                    decoration: BoxDecoration(
+                                      color: color.withOpacity(0.12),
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: Text(
+                                      '${producto.categoria} · ${producto.subcategoria}'.toUpperCase(),
+                                      style: TextStyle(
+                                        fontSize: 7.5,
+                                        fontWeight: FontWeight.w900,
+                                        letterSpacing: 0.5,
+                                        color: color,
+                                      ),
+                                    ),
                                   ),
+                                  const Spacer(),
+                                  if (producto.disponible)
+                                    Container(
+                                      width: 6,
+                                      height: 6,
+                                      decoration: const BoxDecoration(
+                                        color: AppTheme.successGreen,
+                                        shape: BoxShape.circle,
+                                      ),
+                                    ),
+                                ],
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                producto.nombre,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 12,
+                                  color: Colors.white,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              const SizedBox(height: 1),
+                              Text(
+                                producto.marca,
+                                style: const TextStyle(
+                                  color: AppTheme.textGray,
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w500,
                                 ),
                               ),
-                            ),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'S/ ${producto.precioUnitario.toStringAsFixed(2)}',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w900,
+                                      fontSize: 13,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 1),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                                    decoration: BoxDecoration(
+                                      color: AppTheme.successGreen.withOpacity(0.1),
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: Text(
+                                      'Mayorista: S/ ${producto.precioMayorista.toStringAsFixed(2)}',
+                                      style: const TextStyle(
+                                        fontSize: 7.5,
+                                        fontWeight: FontWeight.w800,
+                                        color: AppTheme.successGreen,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              Text(
+                                'x ${producto.unidad}',
+                                style: const TextStyle(
+                                  color: AppTheme.textGray,
+                                  fontSize: 8.5,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
                         ],
                       ),
                     ),
-                    // Detalles a la derecha
-                    Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.all(14),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
-                                      decoration: BoxDecoration(
-                                        color: color.withOpacity(0.12),
-                                        borderRadius: BorderRadius.circular(4),
-                                      ),
-                                      child: Text(
-                                        '${producto.categoria} · ${producto.subcategoria}'.toUpperCase(),
-                                        style: TextStyle(
-                                          fontSize: 7.5,
-                                          fontWeight: FontWeight.w900,
-                                          letterSpacing: 0.5,
-                                          color: color,
-                                        ),
-                                      ),
-                                    ),
-                                    const Spacer(),
-                                    if (producto.disponible)
-                                      Container(
-                                        width: 6,
-                                        height: 6,
-                                        decoration: const BoxDecoration(
-                                          color: AppTheme.successGreen,
-                                          shape: BoxShape.circle,
-                                        ),
-                                      ),
-                                  ],
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  producto.nombre,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w700,
-                                    fontSize: 12,
-                                    color: Colors.white,
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                                const SizedBox(height: 1),
-                                Text(
-                                  producto.marca,
-                                  style: const TextStyle(
-                                    color: AppTheme.textGray,
-                                    fontSize: 9,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 6),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              crossAxisAlignment: CrossAxisAlignment.end,
-                              children: [
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'S/ ${producto.precioUnitario.toStringAsFixed(2)}',
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.w900,
-                                        fontSize: 13,
-                                        color: Colors.white,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 1),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
-                                      decoration: BoxDecoration(
-                                        color: AppTheme.successGreen.withOpacity(0.1),
-                                        borderRadius: BorderRadius.circular(4),
-                                      ),
-                                      child: Text(
-                                        'Mayorista: S/ ${producto.precioMayorista.toStringAsFixed(2)}',
-                                        style: const TextStyle(
-                                          fontSize: 7.5,
-                                          fontWeight: FontWeight.w800,
-                                          color: AppTheme.successGreen,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                Text(
-                                  'x ${producto.unidad}',
-                                  style: const TextStyle(
-                                    color: AppTheme.textGray,
-                                    fontSize: 8.5,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
           ),
