@@ -1,11 +1,11 @@
 class Producto {
-  final int id;
+  final String id;
   final String nombre;
   final String? descripcion;
   final String tipoProducto;
   final double precioReferencia;
   final String? imagenUrl;
-  final int? distribuidorId;
+  final String? distribuidorId;
   final String? distribuidorNombre;
 
   Producto({
@@ -21,13 +21,13 @@ class Producto {
 
   factory Producto.fromJson(Map<String, dynamic> json) {
     return Producto(
-      id: json['id'] ?? 0,
+      id: json['id']?.toString() ?? '',
       nombre: json['nombre'] ?? '',
       descripcion: json['descripcion'],
       tipoProducto: json['tipo_producto'] ?? '',
       precioReferencia: _parseDouble(json['precio_referencia']),
       imagenUrl: json['imagen_url'],
-      distribuidorId: json['distribuidor_id'],
+      distribuidorId: json['distribuidor_id']?.toString(),
       distribuidorNombre: json['distribuidor_nombre'],
     );
   }

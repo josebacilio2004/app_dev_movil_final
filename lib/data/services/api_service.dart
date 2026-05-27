@@ -1,258 +1,178 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'dart:convert';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:gestor_invetarios_pedidos_app/data/services/firestore_service.dart';
 
+/// ADAPTADOR API A FIREBASE FIRESTORE — Comercializadora Aly
+/// Este servicio mantiene la firma y métodos de ApiService para no romper
+/// la UI y providers existentes, pero redirige todo el tráfico a Firestore.
 class ApiService {
-  final Dio _dio = Dio(BaseOptions(
-    baseUrl: 'https://gestor-inventario-pedidos.onrender.com/api',
-    connectTimeout: const Duration(seconds: 15),
-    receiveTimeout: const Duration(seconds: 15),
-    headers: {
-      'Content-Type': 'application/json',
-      'Accept': 'application/json',
-    },
-    validateStatus: (status) => status! < 500,
-  ));
+  final FirestoreService _firestore = FirestoreService();
+  final FirebaseFirestore _db = FirebaseFirestore.instance;
 
-  ApiService() {
-    _dio.interceptors.add(InterceptorsWrapper(
-      onRequest: (options, handler) async {
-        try {
-          final prefs = await SharedPreferences.getInstance();
-          final token = prefs.getString('auth_token');
-          if (token != null) {
-            options.headers['Authorization'] = 'Bearer $token';
-          }
-        } catch (e) {
-          debugPrint('⚠️ Error retrieving auth token: $e');
-        }
-        debugPrint('🌐 API Request: [${options.method}] ${options.path}');
-        return handler.next(options);
-      },
-      onResponse: (response, handler) {
-        debugPrint('✅ API Response: [${response.statusCode}] ${response.requestOptions.path}');
-        return handler.next(response);
-      },
-      onError: (DioException e, handler) {
-        debugPrint('❌ API Error: [${e.response?.statusCode}] ${e.message}');
-        return handler.next(e);
-      },
-    ));
+  // ============================================================
+  // MÉTODOS DE PETICIÓN REST (Simulados para Firebase)
+  // ============================================================
+  Future<Response> get(String path, {Map<String, dynamic>? queryParameters}) async {
+    debugPrint('🌐 ApiService.get (Firebase Adaptado): $path');
+    dynamic data;
+
+    try {
+      if (path == '/tanda-notas') {
+        data = await _firestore.getNotas();
+      } else if (path == '/pedidos') {
+        data = await _firestore.getPedidos();
+      } else if (path == '/facturas-comprador') {
+        data = await _firestore.getFacturas();
+      } else if (path.startsWith('/facturas-comprador/')) {
+        // e.g. /facturas-comprador/compradorId
+        final parts = path.split('/');
+        final id = parts.last;
+        data = await _firestore.getFacturasComprador(id);
+      } else {
+        debugPrint('⚠️ Path GET no mapeado: $path');
+        data = [];
+      }
+
+      return Response(
+        requestOptions: RequestOptions(path: path),
+        data: data,
+        statusCode: 200,
+      );
+    } catch (e) {
+      debugPrint('❌ Error ApiService.get: $e');
+      return Response(
+        requestOptions: RequestOptions(path: path),
+        data: [],
+        statusCode: 500,
+        statusMessage: e.toString(),
+      );
+    }
   }
 
-  // Métodos Base
-  Future<Response> get(String path, {Map<String, dynamic>? queryParameters}) => 
-    _dio.get(path, queryParameters: queryParameters);
-    
-  Future<Response> post(String path, {dynamic data}) => _dio.post(path, data: data);
-  Future<Response> put(String path, {dynamic data}) => _dio.put(path, data: data);
-  Future<Response> delete(String path) => _dio.delete(path);
+  Future<Response> post(String path, {dynamic data}) async {
+    debugPrint('🌐 ApiService.post (Firebase Adaptado): $path');
+    dynamic result;
 
-  // --- AUTH ---
+    try {
+      if (path == '/tandas') {
+        final ref = await _db.collection('tandas').add({
+          ...?data,
+          'fecha_inicio': FieldValue.serverTimestamp(),
+        });
+        result = {'id': ref.id, ...?data};
+      } else if (path == '/pedidos-herramientas') {
+        result = await _firestore.createPedido(data as Map<String, dynamic>);
+      } else if (path == '/tanda-notas') {
+        final ref = await _db.collection('tanda_notas').add({
+          ...?data,
+          'fecha_creacion': FieldValue.serverTimestamp(),
+        });
+        result = {'id': ref.id, ...?data};
+      } else {
+        debugPrint('⚠️ Path POST no mapeado: $path');
+        result = {};
+      }
+
+      return Response(
+        requestOptions: RequestOptions(path: path),
+        data: result,
+        statusCode: 200,
+      );
+    } catch (e) {
+      debugPrint('❌ Error ApiService.post: $e');
+      return Response(
+        requestOptions: RequestOptions(path: path),
+        statusCode: 500,
+        statusMessage: e.toString(),
+      );
+    }
+  }
+
+  Future<Response> put(String path, {dynamic data}) async {
+    debugPrint('🌐 ApiService.put (Firebase Adaptado): $path');
+
+    try {
+      if (path.startsWith('/tandas/')) {
+        final parts = path.split('/');
+        final id = parts.last;
+        await _db.collection('tandas').doc(id).update(data as Map<String, dynamic>);
+      } else {
+        debugPrint('⚠️ Path PUT no mapeado: $path');
+      }
+
+      return Response(
+        requestOptions: RequestOptions(path: path),
+        statusCode: 200,
+      );
+    } catch (e) {
+      debugPrint('❌ Error ApiService.put: $e');
+      return Response(
+        requestOptions: RequestOptions(path: path),
+        statusCode: 500,
+        statusMessage: e.toString(),
+      );
+    }
+  }
+
+  Future<Response> delete(String path) async {
+    debugPrint('🌐 ApiService.delete (Firebase Adaptado): $path');
+    return Response(
+      requestOptions: RequestOptions(path: path),
+      statusCode: 200,
+    );
+  }
+
+  // ============================================================
+  // SERVICIOS ESPECÍFICOS (Simulados sobre Firestore)
+  // ============================================================
+
+  // --- LOGIN (DEPRECADO, se mantiene por compatibilidad) ---
   Future<Map<String, dynamic>> login(String role, String identifier, String password) async {
-    String endpoint;
-    final r = role.toLowerCase();
-    
-    // El backend tiene rutas separadas por rol para login
-    if (r == 'admin') {
-      endpoint = '/admin/login';
-    } else if (r == 'inversionista' || r == 'inversionistas') {
-      endpoint = '/inversionistas/login';
-    } else if (r == 'comprador' || r == 'compradores') {
-      endpoint = '/compradores/login';
-    } else if (r == 'operador' || r == 'operadores') {
-      endpoint = '/operadores/login';
-    } else {
-      endpoint = '/$role/login'; 
-    }
-
-    final response = await post(endpoint, data: {
-      'usuario': identifier,
-      'password': password,
-    });
-    
-    if (response.statusCode == 200) {
-      final data = response.data;
-      
-      if (data is Map) {
-        return Map<String, dynamic>.from(data);
-      } else if (data is String) {
-        debugPrint('⚠️ Server returned String instead of Map. Attempting jsonDecode...');
-        try {
-          final decoded = jsonDecode(data);
-          if (decoded is Map) {
-            return Map<String, dynamic>.from(decoded);
-          }
-        } catch (e) {
-          debugPrint('❌ Failed to decode response string: $e');
-        }
-      }
-      
-      // Fallback: Si el servidor solo devuelve el nombre de usuario como String
-      // Construimos un objeto mínimo para evitar el TypeError
-      if (data is String && data.isNotEmpty) {
-        return {
-          'id': 0,
-          'usuario': data,
-          'nombre': data,
-          'rol': r,
-        };
-      }
-      
-      throw Exception('Formato de respuesta inválido: ${data.runtimeType}');
-    } else {
-      final errorData = response.data;
-      String message = 'Error de autenticación';
-      if (errorData is Map) {
-        message = errorData['message'] ?? errorData['error'] ?? message;
-      }
-      throw Exception(message);
-    }
+    debugPrint('⚠️ login() invocado en ApiService adapter');
+    throw UnimplementedError('Usar AuthService para autenticación de Firebase');
   }
-
-
-
-
 
   // --- PRODUCTOS ---
-  Future<List<Map<String, dynamic>>> getProductos() async {
-    final response = await get('/productos');
-    return List<Map<String, dynamic>>.from(response.data);
-  }
-
-  Future<Map<String, dynamic>> createProducto(Map<String, dynamic> data) async {
-    final response = await post('/productos', data: data);
-    return response.data;
-  }
-
-  Future<Map<String, dynamic>> updateProducto(int id, Map<String, dynamic> data) async {
-    final response = await put('/productos/$id', data: data);
-    return response.data;
-  }
-
-  Future<Map<String, dynamic>> deleteProducto(int id) async {
-    final response = await delete('/productos/$id');
-    return response.data;
-  }
+  Future<List<Map<String, dynamic>>> getProductos() => _firestore.getProductos();
+  Future<Map<String, dynamic>> createProducto(Map<String, dynamic> data) => _firestore.createProducto(data);
+  Future<Map<String, dynamic>> updateProducto(dynamic id, Map<String, dynamic> data) => _firestore.updateProducto(id.toString(), data);
+  Future<void> deleteProducto(dynamic id) => _firestore.deleteProducto(id.toString());
 
   // --- DISTRIBUIDORES ---
-  Future<List<Map<String, dynamic>>> getDistribuidores() async {
-    final response = await get('/distribuidores');
-    return List<Map<String, dynamic>>.from(response.data);
-  }
+  Future<List<Map<String, dynamic>>> getDistribuidores() => _firestore.getDistribuidores();
+  Future<Map<String, dynamic>> createDistribuidor(Map<String, dynamic> data) => _firestore.createDistribuidor(data);
+  Future<Map<String, dynamic>> updateDistribuidor(dynamic id, Map<String, dynamic> data) => _firestore.updateDistribuidor(id.toString(), data);
+  Future<void> deleteDistribuidor(dynamic id) => _firestore.deleteDistribuidor(id.toString());
 
-  Future<Map<String, dynamic>> createDistribuidor(Map<String, dynamic> data) async {
-    final response = await post('/distribuidores', data: data);
-    return response.data;
-  }
-
-  Future<Map<String, dynamic>> updateDistribuidor(int id, Map<String, dynamic> data) async {
-    final response = await put('/distribuidores/$id', data: data);
-    return response.data;
-  }
-
-  Future<Map<String, dynamic>> deleteDistribuidor(int id) async {
-    final response = await delete('/distribuidores/$id');
-    return response.data;
-  }
-
-  // --- PEDIDOS (COMPRAS / INVERSIONES) ---
-  Future<List<Map<String, dynamic>>> getPedidos() async {
-    final response = await get('/pedidos');
-    return List<Map<String, dynamic>>.from(response.data);
-  }
-
-  Future<Map<String, dynamic>> createPedido(Map<String, dynamic> data) async {
-    final response = await post('/pedidos', data: data);
-    return response.data;
-  }
-
-  Future<Map<String, dynamic>> updatePedido(int id, Map<String, dynamic> data) async {
-    final response = await put('/pedidos/$id', data: data);
-    return response.data;
-  }
-
-  Future<Map<String, dynamic>> deletePedido(int id) async {
-    final response = await delete('/pedidos/$id');
-    return response.data;
-  }
+  // --- PEDIDOS ---
+  Future<List<Map<String, dynamic>>> getPedidos() => _firestore.getPedidos();
+  Future<Map<String, dynamic>> createPedido(Map<String, dynamic> data) => _firestore.createPedido(data);
+  Future<Map<String, dynamic>> updatePedido(dynamic id, Map<String, dynamic> data) => _firestore.updatePedido(id.toString(), data);
+  Future<void> deletePedido(dynamic id) => _firestore.deletePedido(id.toString());
 
   // --- TANDAS ---
-  Future<List<Map<String, dynamic>>> getTandas() async {
-    final response = await get('/tandas');
-    return List<Map<String, dynamic>>.from(response.data);
-  }
+  Future<List<Map<String, dynamic>>> getTandas() => _firestore.getTandas();
 
   // --- COMPRADORES ---
-  Future<List<Map<String, dynamic>>> getCompradores() async {
-    final response = await get('/compradores');
-    return List<Map<String, dynamic>>.from(response.data);
-  }
-
-  Future<Map<String, dynamic>> updateComprador(int id, Map<String, dynamic> data) async {
-    final response = await put('/compradores/$id', data: data);
-    return response.data;
-  }
-
-  // --- FACTURAS Y ABONOS (COMPRADORES) ---
-  Future<List<Map<String, dynamic>>> getFacturasComprador(int compradorId, {int? distribuidorId}) async {
-    final Map<String, dynamic> query = {'comprador_id': compradorId};
-    if (distribuidorId != null) query['distribuidor_id'] = distribuidorId;
-    
-    final response = await get('/facturas-comprador', queryParameters: query);
-    return List<Map<String, dynamic>>.from(response.data);
-  }
-
-  Future<Map<String, dynamic>> createAbono(int facturaId, Map<String, dynamic> data) async {
-    final response = await post('/facturas-comprador/$facturaId/abonos', data: data);
-    return response.data;
-  }
-
-  Future<List<Map<String, dynamic>>> getAbonosFactura(int facturaId) async {
-    final response = await get('/facturas-comprador/$facturaId/abonos');
-    return List<Map<String, dynamic>>.from(response.data);
-  }
-
-  // --- MAYORISTAS ---
-  Future<List<Map<String, dynamic>>> getMayoristasClientes() async {
-    final response = await get('/mayoristas/clientes');
-    return List<Map<String, dynamic>>.from(response.data);
-  }
-
-  Future<Map<String, dynamic>> createMayoristaCliente(Map<String, dynamic> data) async {
-    final response = await post('/mayoristas/clientes', data: data);
-    return response.data;
-  }
-
-  Future<List<Map<String, dynamic>>> getMayoristaStock() async {
-    final response = await get('/mayoristas/stock');
-    return List<Map<String, dynamic>>.from(response.data);
-  }
-
-  Future<List<Map<String, dynamic>>> getMayoristaVentas() async {
-    final response = await get('/mayoristas/ventas');
-    return List<Map<String, dynamic>>.from(response.data);
-  }
-
-  Future<Map<String, dynamic>> createMayoristaVenta(Map<String, dynamic> data) async {
-    final response = await post('/mayoristas/ventas', data: data);
-    return response.data;
-  }
-
-  Future<Map<String, dynamic>> createStockManual(Map<String, dynamic> data) async {
-    final response = await post('/mayoristas/stock-manual', data: data);
-    return response.data;
-  }
+  Future<List<Map<String, dynamic>>> getCompradores() => _firestore.getCompradores();
+  Future<Map<String, dynamic>> updateComprador(dynamic id, Map<String, dynamic> data) => _firestore.updateComprador(id.toString(), data);
 
   // --- INVERSIONISTAS ---
-  Future<List<Map<String, dynamic>>> getInversionistas() async {
-    final response = await get('/inversionistas');
-    return List<Map<String, dynamic>>.from(response.data);
-  }
+  Future<List<Map<String, dynamic>>> getInversionistas() => _firestore.getInversionistas();
+  Future<Map<String, dynamic>> updateInversionista(dynamic id, Map<String, dynamic> data) => _firestore.updateInversionista(id.toString(), data);
 
-  Future<Map<String, dynamic>> updateInversionista(int id, Map<String, dynamic> data) async {
-    final response = await put('/inversionistas/$id', data: data);
-    return response.data;
-  }
+  // --- FACTURAS Y ABONOS ---
+  Future<List<Map<String, dynamic>>> getFacturasComprador(dynamic compradorId, {dynamic distribuidorId}) =>
+      _firestore.getFacturasComprador(compradorId.toString(), distribuidorId: distribuidorId?.toString());
+  Future<Map<String, dynamic>> createAbono(dynamic facturaId, Map<String, dynamic> data) => _firestore.createAbono(facturaId.toString(), data);
+  Future<List<Map<String, dynamic>>> getAbonosFactura(dynamic facturaId) => _firestore.getAbonosFactura(facturaId.toString());
+
+  // --- MAYORISTAS ---
+  Future<List<Map<String, dynamic>>> getMayoristasClientes() => _firestore.getMayoristasClientes();
+  Future<Map<String, dynamic>> createMayoristaCliente(Map<String, dynamic> data) => _firestore.createMayoristaCliente(data);
+  Future<List<Map<String, dynamic>>> getMayoristaStock() => _firestore.getMayoristaStock();
+  Future<List<Map<String, dynamic>>> getMayoristaVentas() => _firestore.getMayoristaVentas();
+  Future<Map<String, dynamic>> createMayoristaVenta(Map<String, dynamic> data) => _firestore.createMayoristaVenta(data);
+  Future<Map<String, dynamic>> createStockManual(Map<String, dynamic> data) => _firestore.createStockManual(data);
 }

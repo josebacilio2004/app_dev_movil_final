@@ -1,10 +1,10 @@
 class Tanda {
-  final int id;
+  final String id;
   final String nombre;
   final DateTime fechaInicio;
   final DateTime? fechaFin;
   final String estado;
-  final int? operadorId;
+  final String? operadorId;
   final double? picos;
   final double? zapapicos;
 
@@ -21,12 +21,12 @@ class Tanda {
 
   factory Tanda.fromJson(Map<String, dynamic> json) {
     return Tanda(
-      id: json['id'] ?? 0,
+      id: json['id']?.toString() ?? '',
       nombre: json['nombre'] ?? '',
       fechaInicio: DateTime.parse(json['fecha_inicio'] ?? DateTime.now().toIso8601String()),
       fechaFin: json['fecha_fin'] != null ? DateTime.parse(json['fecha_fin']) : null,
       estado: json['estado'] ?? 'activa',
-      operadorId: json['operador_id'],
+      operadorId: json['operador_id']?.toString(),
       picos: _parseDouble(json['picos']),
       zapapicos: _parseDouble(json['zapapicos']),
     );

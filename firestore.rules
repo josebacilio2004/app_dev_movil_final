@@ -7,31 +7,100 @@ service cloud.firestore {
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == role;
     }
 
+    // Helper: usuario autenticado
+    function isAuth() {
+      return request.auth != null;
+    }
+
     match /users/{userId} {
-      allow read: if request.auth != null && (request.auth.uid == userId || hasRole('admin'));
+      allow read: if isAuth() && (request.auth.uid == userId || hasRole('admin'));
       allow write: if hasRole('admin');
+      // Permitir crear perfil durante seeder (modo desarrollo)
+      allow create: if true;
     }
 
     match /productos/{productId} {
-      allow read: if request.auth != null;
+      allow read: if isAuth();
       allow write: if hasRole('admin');
     }
 
+    // CATÁLOGO DE PRODUCTOS — visible para admin, inversionista, comprador (NO operador)
+    match /catalogo_productos/{productoId} {
+      allow read: if isAuth() && (
+        hasRole('admin') || 
+        hasRole('inversionista') || 
+        hasRole('comprador')
+      );
+      allow write: if hasRole('admin');
+      // Permitir escritura durante seeder (modo desarrollo)
+      allow create: if true;
+    }
+
     match /pedidos/{pedidoId} {
-      allow read: if request.auth != null && (
+      allow read: if isAuth() && (
         hasRole('admin') || 
         resource.data.inversionistaId == request.auth.uid || 
         resource.data.compradorId == request.auth.uid
       );
       allow write: if hasRole('admin') || (
-        request.auth != null && 
+        isAuth() && 
         hasRole('comprador') && 
         request.resource.data.compradorId == request.auth.uid
       );
     }
 
     match /pagos_capital/{pagoId} {
-      allow read: if request.auth != null;
+      allow read: if isAuth();
+      allow write: if hasRole('admin') || hasRole('comprador');
+    }
+
+    match /distribuidores/{distribuidorId} {
+      allow read: if isAuth();
+      allow write: if hasRole('admin') || hasRole('inversionista');
+    }
+
+    match /tandas/{tandaId} {
+      allow read: if isAuth();
+      allow write: if hasRole('admin') || hasRole('operador');
+    }
+
+    match /tanda_notas/{notaId} {
+      allow read: if isAuth();
+      allow write: if hasRole('admin') || hasRole('operador');
+    }
+
+    match /compradores/{compradorId} {
+      allow read: if isAuth();
+      allow write: if hasRole('admin');
+    }
+
+    match /inversionistas/{inversionistaId} {
+      allow read: if isAuth();
+      allow write: if hasRole('admin');
+    }
+
+    match /facturas_comprador/{facturaId} {
+      allow read: if isAuth();
+      allow write: if hasRole('admin') || hasRole('comprador');
+
+      match /abonos/{abonoId} {
+        allow read: if isAuth();
+        allow write: if hasRole('admin') || hasRole('comprador');
+      }
+    }
+
+    match /mayoristas_clientes/{clienteId} {
+      allow read: if isAuth();
+      allow write: if hasRole('admin') || hasRole('comprador');
+    }
+
+    match /mayorista_stock/{stockId} {
+      allow read: if isAuth();
+      allow write: if hasRole('admin') || hasRole('comprador');
+    }
+
+    match /mayorista_ventas/{ventaId} {
+      allow read: if isAuth();
       allow write: if hasRole('admin') || hasRole('comprador');
     }
   }

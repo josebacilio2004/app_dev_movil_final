@@ -1,5 +1,5 @@
 class MayoristaCliente {
-  final int id;
+  final String id;
   final String nombre;
   final String? documento;
   final String? telefono;
@@ -17,7 +17,7 @@ class MayoristaCliente {
 
   factory MayoristaCliente.fromJson(Map<String, dynamic> json) {
     return MayoristaCliente(
-      id: json['id'] ?? 0,
+      id: json['id']?.toString() ?? '',
       nombre: json['nombre'] ?? '',
       documento: json['documento'],
       telefono: json['telefono'],

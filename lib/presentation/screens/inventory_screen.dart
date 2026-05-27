@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gestor_invetarios_pedidos_app/core/theme/app_theme.dart';
 import 'package:gestor_invetarios_pedidos_app/presentation/providers/database_provider.dart';
+import 'package:gestor_invetarios_pedidos_app/data/models/producto.dart';
 
 class InventoryScreen extends ConsumerWidget {
   const InventoryScreen({super.key});
@@ -51,7 +52,7 @@ class InventoryScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildProductList(List<Map<String, dynamic>> products) {
+  Widget _buildProductList(List<Producto> products) {
     if (products.isEmpty) {
       return const Center(child: Text('No hay productos registrados.', style: TextStyle(color: AppTheme.textGray)));
     }
@@ -62,10 +63,10 @@ class InventoryScreen extends ConsumerWidget {
       itemBuilder: (context, index) {
         final p = products[index];
         return _productCard(
-          p['nombre'] ?? 'Sin nombre',
-          p['distribuidor'] ?? 'N/A',
-          'S/ ${p['precio'] ?? '0.00'}',
-          p['tipo'] ?? 'Herramienta',
+          p.nombre,
+          p.distribuidorNombre ?? 'N/A',
+          'S/ ${p.precioReferencia.toStringAsFixed(2)}',
+          p.tipoProducto,
         );
       },
     );

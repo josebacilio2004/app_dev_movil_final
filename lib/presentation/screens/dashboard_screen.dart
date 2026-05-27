@@ -6,6 +6,7 @@ import 'package:gestor_invetarios_pedidos_app/presentation/providers/auth_provid
 import 'package:gestor_invetarios_pedidos_app/presentation/providers/investor_nav_provider.dart';
 import 'package:gestor_invetarios_pedidos_app/presentation/providers/buyer_nav_provider.dart';
 import 'package:gestor_invetarios_pedidos_app/presentation/screens/login_screen.dart';
+import 'package:gestor_invetarios_pedidos_app/presentation/screens/catalogo_screen.dart';
 import 'package:gestor_invetarios_pedidos_app/presentation/widgets/dashboards/admin_dashboard.dart';
 import 'package:gestor_invetarios_pedidos_app/presentation/widgets/dashboards/operator_dashboard.dart';
 import 'package:gestor_invetarios_pedidos_app/presentation/widgets/dashboards/buyer_dashboard.dart';
@@ -193,12 +194,18 @@ class DashboardScreen extends ConsumerWidget {
                   _drawerItem(ref, BuyerSection.myProducts, 'MIS PRODUCTOS', Icons.inventory_2_rounded, buyerSection == BuyerSection.myProducts),
                   _drawerItem(ref, BuyerSection.invoicing, 'FACTURACIÓN', Icons.account_balance_wallet_rounded, buyerSection == BuyerSection.invoicing),
                   _drawerItem(ref, BuyerSection.wholesaleSales, 'VENTAS MAYORISTAS', Icons.shopping_cart_rounded, buyerSection == BuyerSection.wholesaleSales),
+                  const Divider(color: Colors.white12, height: 24),
+                  _catalogDrawerItem(context, role),
                 ] else if (role == 'inversionista') ...[
                   _drawerItem(ref, InvestorSection.dashboard, 'DASHBOARD', Icons.dashboard_rounded, investorSection == InvestorSection.dashboard),
                   _drawerItem(ref, InvestorSection.orders, 'MIS INVERSIONES', Icons.monetization_on_rounded, investorSection == InvestorSection.orders),
                   _drawerItem(ref, InvestorSection.products, 'PRODUCTOS', Icons.category_rounded, investorSection == InvestorSection.products),
                   _drawerItem(ref, InvestorSection.distributors, 'DISTRIBUIDORES', Icons.business_rounded, investorSection == InvestorSection.distributors),
                   _drawerItem(ref, InvestorSection.buyers, 'COMPRADORES', Icons.people_rounded, investorSection == InvestorSection.buyers),
+                  const Divider(color: Colors.white12, height: 24),
+                  _catalogDrawerItem(context, role),
+                ] else if (role == 'admin') ...[
+                  _catalogDrawerItem(context, role),
                 ],
               ],
             ),
@@ -248,6 +255,40 @@ class DashboardScreen extends ConsumerWidget {
           if (section is BuyerSection) ref.read(buyerNavProvider.notifier).state = section;
           if (section is InvestorSection) ref.read(investorNavProvider.notifier).state = section;
           Navigator.pop(ref.context);
+        },
+      ),
+    );
+  }
+
+  Widget _catalogDrawerItem(BuildContext context, String role) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [AppTheme.accentOrange.withOpacity(0.08), Colors.transparent],
+        ),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppTheme.accentOrange.withOpacity(0.15)),
+      ),
+      child: ListTile(
+        leading: const Icon(Icons.storefront_rounded, color: AppTheme.accentOrange, size: 20),
+        title: Text(
+          'CATÁLOGO DE PRODUCTOS',
+          style: GoogleFonts.outfit(
+            fontSize: 12,
+            fontWeight: FontWeight.w800,
+            color: AppTheme.accentOrange,
+          ),
+        ),
+        trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 12, color: AppTheme.accentOrange),
+        onTap: () {
+          Navigator.pop(context);
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => CatalogoScreen(userRole: role),
+            ),
+          );
         },
       ),
     );

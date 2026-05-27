@@ -262,7 +262,7 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
     final price = TextEditingController(text: isEdit ? product.precioReferencia.toString() : '');
     final desc = TextEditingController(text: isEdit ? product.descripcion ?? '' : '');
     final imageUrl = TextEditingController(text: isEdit ? product.imagenUrl ?? '' : '');
-    int? selectedDistributorId = isEdit ? product.distribuidorId : null;
+    String? selectedDistributorId = isEdit ? product.distribuidorId : null;
 
     showDialog(
       context: context,
@@ -301,12 +301,12 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
                 const Text('DISTRIBUIDOR ASIGNADO', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w900, color: AppTheme.textGray)),
                 const SizedBox(height: 8),
                 ref.watch(distributorsFutureProvider).when(
-                  data: (distribs) => DropdownButtonFormField<int>(
+                  data: (distribs) => DropdownButtonFormField<String>(
                     value: selectedDistributorId,
                     dropdownColor: AppTheme.surfaceDark,
                     items: [
                       const DropdownMenuItem(value: null, child: Text('Ninguno', style: TextStyle(color: AppTheme.textGray))),
-                      ...distribs.map((d) => DropdownMenuItem(value: d['id'] as int, child: Text(d['nombre'] ?? ''))),
+                      ...distribs.map((d) => DropdownMenuItem(value: d['id']?.toString(), child: Text(d['nombre'] ?? ''))),
                     ],
                     onChanged: (v) => setState(() => selectedDistributorId = v),
                     decoration: const InputDecoration(hintText: 'Distribuidor'),
@@ -351,7 +351,7 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
     );
   }
 
-  Future<void> _handleDeleteProduct(int id) async {
+  Future<void> _handleDeleteProduct(String id) async {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(

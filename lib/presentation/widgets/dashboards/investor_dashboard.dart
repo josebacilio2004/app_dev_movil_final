@@ -341,7 +341,7 @@ class InvestorDashboard extends ConsumerWidget {
   }
 
   // ─── CRUD HANDLERS ───
-  void _handleDeleteOrder(WidgetRef ref, int id) async {
+  void _handleDeleteOrder(WidgetRef ref, String id) async {
     final confirm = await _showDeleteConfirm(ref.context, '¿Borrar este pedido?');
     if (confirm) {
       await ref.read(apiServiceProvider).deletePedido(id);
@@ -349,7 +349,7 @@ class InvestorDashboard extends ConsumerWidget {
     }
   }
 
-  void _handleDeleteProduct(WidgetRef ref, int id) async {
+  void _handleDeleteProduct(WidgetRef ref, String id) async {
     final confirm = await _showDeleteConfirm(ref.context, '¿Borrar este producto?');
     if (confirm) {
       await ref.read(apiServiceProvider).deleteProducto(id);
@@ -357,7 +357,7 @@ class InvestorDashboard extends ConsumerWidget {
     }
   }
 
-  void _handleDeleteDistributor(WidgetRef ref, int id) async {
+  void _handleDeleteDistributor(WidgetRef ref, String id) async {
     final confirm = await _showDeleteConfirm(ref.context, '¿Borrar distribuidor?');
     if (confirm) {
       await ref.read(apiServiceProvider).deleteDistribuidor(id);
@@ -388,12 +388,12 @@ class InvestorDashboard extends ConsumerWidget {
     final profitController = TextEditingController(text: isEdit ? order['ganancia_esperada'].toString() : '');
     final notesController = TextEditingController(text: isEdit ? order['notas'] ?? '' : '');
     
-    int? selectedDistributor = isEdit ? order['distribuidor_id'] : null;
-    int? selectedComprador = isEdit ? order['comprador_id'] : null;
+    String? selectedDistributor = isEdit ? order['distribuidor_id']?.toString() : null;
+    String? selectedComprador = isEdit ? order['comprador_id']?.toString() : null;
     
     List<Map<String, dynamic>> itemsList = isEdit ? List<Map<String, dynamic>>.from(order['items'] ?? []) : [];
     final qtyController = TextEditingController();
-    int? tempProduct;
+    String? tempProduct;
 
     showDialog(
       context: context,
@@ -408,10 +408,10 @@ class InvestorDashboard extends ConsumerWidget {
                 TextField(controller: dateController, decoration: const InputDecoration(labelText: 'Fecha', prefixIcon: Icon(Icons.calendar_today))),
                 const SizedBox(height: 12),
                 ref.watch(distributorsFutureProvider).when(
-                  data: (distribs) => DropdownButtonFormField<int>(
+                  data: (distribs) => DropdownButtonFormField<String>(
                     value: selectedDistributor,
                     decoration: const InputDecoration(labelText: 'Distribuidor'),
-                    items: distribs.map((d) => DropdownMenuItem(value: d['id'] as int, child: Text(d['nombre']))).toList(),
+                    items: distribs.map((d) => DropdownMenuItem(value: d['id']?.toString(), child: Text(d['nombre'] ?? ''))).toList(),
                     onChanged: (v) => selectedDistributor = v,
                   ),
                   loading: () => const LinearProgressIndicator(),
@@ -419,10 +419,10 @@ class InvestorDashboard extends ConsumerWidget {
                 ),
                 const SizedBox(height: 12),
                 ref.watch(buyersFutureProvider).when(
-                  data: (buyers) => DropdownButtonFormField<int>(
+                  data: (buyers) => DropdownButtonFormField<String>(
                     value: selectedComprador,
                     decoration: const InputDecoration(labelText: 'Comprador Responsable'),
-                    items: buyers.map((b) => DropdownMenuItem(value: b['id'] as int, child: Text(headSafe(b['nombre'], 'COMPRADOR')))).toList(),
+                    items: buyers.map((b) => DropdownMenuItem(value: b['id']?.toString(), child: Text(headSafe(b['nombre'], 'COMPRADOR')))).toList(),
                     onChanged: (v) => selectedComprador = v,
                   ),
                   loading: () => const LinearProgressIndicator(),
@@ -433,7 +433,7 @@ class InvestorDashboard extends ConsumerWidget {
                   children: [
                     Expanded(
                       child: ref.watch(productsFutureProvider).when(
-                        data: (prods) => DropdownButtonFormField<int>(
+                        data: (prods) => DropdownButtonFormField<String>(
                           value: tempProduct,
                           decoration: const InputDecoration(labelText: 'Producto'),
                           items: prods.map((p) => DropdownMenuItem(value: p.id, child: Text(p.nombre))).toList(),
@@ -525,7 +525,7 @@ class InvestorDashboard extends ConsumerWidget {
     final desc = TextEditingController(text: isEdit ? product.descripcion ?? '' : '');
     final imageUrl = TextEditingController(text: isEdit ? product.imagenUrl ?? '' : '');
     
-    int? selectedDistributorId = isEdit ? product.distribuidorId : null;
+    String? selectedDistributorId = isEdit ? product.distribuidorId : null;
 
     showDialog(
       context: context,
@@ -577,12 +577,12 @@ class InvestorDashboard extends ConsumerWidget {
                 const Text('DISTRIBUIDOR ASIGNADO', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w900, color: AppTheme.textGray, letterSpacing: 1)),
                 const SizedBox(height: 8),
                 ref.watch(distributorsFutureProvider).when(
-                  data: (distribs) => DropdownButtonFormField<int>(
+                  data: (distribs) => DropdownButtonFormField<String>(
                     value: selectedDistributorId,
                     dropdownColor: AppTheme.surfaceDark,
                     items: [
                       const DropdownMenuItem(value: null, child: Text('Ninguno', style: TextStyle(color: AppTheme.textGray))),
-                      ...distribs.map((d) => DropdownMenuItem(value: d['id'] as int, child: Text(d['nombre'] ?? 'S/N'))),
+                      ...distribs.map((d) => DropdownMenuItem(value: d['id']?.toString(), child: Text(d['nombre'] ?? 'S/N'))),
                     ],
                     onChanged: (v) => setState(() => selectedDistributorId = v),
                     decoration: const InputDecoration(hintText: 'Seleccionar distribuidor'),

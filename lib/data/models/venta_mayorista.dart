@@ -1,9 +1,9 @@
 import '../../core/utils/numeric_utils.dart';
 
 class VentaMayorista {
-  final int id;
-  final int compradorId;
-  final int clienteId;
+  final String id;
+  final String compradorId;
+  final String clienteId;
   final String? clienteNombre;
   final double total;
   final String? notas;
@@ -28,9 +28,9 @@ class VentaMayorista {
     List<DetalleVentaMayorista> detailsList = list.map((i) => DetalleVentaMayorista.fromJson(i)).toList();
 
     return VentaMayorista(
-      id: json['id'] ?? 0,
-      compradorId: json['comprador_id'] ?? 0,
-      clienteId: json['cliente_id'] ?? 0,
+      id: json['id']?.toString() ?? '',
+      compradorId: json['comprador_id']?.toString() ?? '',
+      clienteId: json['cliente_id']?.toString() ?? '',
       clienteNombre: json['cliente_nombre'],
       total: parseDoubleSafe(json['total']),
       notas: json['notas'],
@@ -44,8 +44,8 @@ class VentaMayorista {
 }
 
 class DetalleVentaMayorista {
-  final int id;
-  final int ventaId;
+  final String id;
+  final String ventaId;
   final String tipo;
   final String marca;
   final int cantidad;
@@ -62,8 +62,8 @@ class DetalleVentaMayorista {
 
   factory DetalleVentaMayorista.fromJson(Map<String, dynamic> json) {
     return DetalleVentaMayorista(
-      id: json['id'] ?? 0,
-      ventaId: json['venta_id'] ?? 0,
+      id: json['id']?.toString() ?? '',
+      ventaId: json['venta_id']?.toString() ?? '',
       tipo: json['tipo'] ?? '',
       marca: json['marca'] ?? '',
       cantidad: parseIntSafe(json['cantidad']),

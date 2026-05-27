@@ -66,3 +66,5 @@ final ordersStreamProvider = ordersFutureProvider;
 final tandasStreamProvider = tandasFutureProvider;
 final invoicesStreamProvider = invoicesFutureProvider;
 final notesStreamProvider = notesFutureProvider;
+final investorsStreamProvider = investorsFutureProvider;
+final buyersStreamProvider = buyersFutureProvider;

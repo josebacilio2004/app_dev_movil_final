@@ -6,6 +6,7 @@ import 'package:gestor_invetarios_pedidos_app/presentation/screens/login_screen.
 import 'package:gestor_invetarios_pedidos_app/firebase_options.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:gestor_invetarios_pedidos_app/core/services/notification_service.dart';
+import 'package:gestor_invetarios_pedidos_app/data/seeders/seeder_initializer.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -20,6 +21,9 @@ void main() async {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
+    // Ejecutar seeders después de inicializar Firebase
+    await SeederInitializer.initCatalogo();
+    await SeederInitializer.seedTestUsers();
   } catch (e) {
     debugPrint('Firebase initialization failed: $e');
   }
