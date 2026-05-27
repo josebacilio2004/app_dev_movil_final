@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gestor_invetarios_pedidos_app/core/theme/app_theme.dart';
 import 'package:gestor_invetarios_pedidos_app/presentation/providers/auth_provider.dart';
 import 'package:gestor_invetarios_pedidos_app/presentation/screens/dashboard_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:local_auth/local_auth.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -17,12 +19,162 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   String? _selectedRole;
   bool _isLoading = false;
 
+  final LocalAuthentication _localAuth = LocalAuthentication();
+
   final List<Map<String, String>> _roles = [
     {'id': 'inversionista', 'label': 'INVERSIONISTA', 'subtitle': 'Gestión de Capital & ROI', 'icon': '📈'},
     {'id': 'comprador', 'label': 'COMPRADOR', 'subtitle': 'Facturación & Abonos', 'icon': '🛒'},
     {'id': 'operador', 'label': 'OPERADOR', 'subtitle': 'Logística & Distribución', 'icon': '🏭'},
     {'id': 'admin', 'label': 'ADMIN', 'subtitle': 'Control Total del Sistema', 'icon': '🛡️'},
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _checkBiometrics();
+  }
+
+  Future<void> _checkBiometrics() async {
+    try {
+      final isAvailable = await _localAuth.canCheckBiometrics;
+      final isDeviceSupported = await _localAuth.isDeviceSupported();
+      debugPrint('Soporte biométrico - disponible: $isAvailable, dispositivo compatible: $isDeviceSupported');
+    } catch (e) {
+      debugPrint('Error al verificar biometría: $e');
+    }
+  }
+
+  Future<void> _handleBiometricLogin() async {
+    try {
+      final authenticated = await _localAuth.authenticate(
+        localizedReason: 'Autentícate con tu huella para iniciar sesión rápidamente',
+      );
+
+      if (authenticated) {
+        setState(() => _isLoading = true);
+        final prefs = await SharedPreferences.getInstance();
+        final identifier = prefs.getString('bio_identifier') ?? '';
+        final password = prefs.getString('bio_password') ?? '';
+        final role = prefs.getString('bio_role') ?? '';
+
+        if (identifier.isNotEmpty && password.isNotEmpty && role.isNotEmpty) {
+          final authService = ref.read(authServiceProvider);
+          
+          String apiRole = role;
+          if (apiRole == 'inversionista') apiRole = 'inversionistas';
+          if (apiRole == 'comprador') apiRole = 'compradores';
+          if (apiRole == 'operador') apiRole = 'operadores';
+
+          final user = await authService.signIn(identifier, password, apiRole, originalRole: role);
+          if (user != null) {
+            ref.read(authStateProvider.notifier).state = user;
+            if (mounted) {
+              Navigator.of(context).pushReplacement(
+                MaterialPageRoute(builder: (_) => const DashboardScreen()),
+              );
+            }
+          } else {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Credenciales biométricas inválidas o expiradas.')),
+              );
+            }
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Error en autenticación biométrica: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error al autenticar por huella: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _onBiometricPressed() async {
+    try {
+      final isAvailable = await _localAuth.canCheckBiometrics;
+      final isDeviceSupported = await _localAuth.isDeviceSupported();
+      if (!isAvailable || !isDeviceSupported) {
+        if (mounted) {
+          showDialog(
+            context: context,
+            builder: (context) => AlertDialog(
+              backgroundColor: AppTheme.surfaceDark,
+              title: const Text('Huella Dactilar', style: TextStyle(color: Colors.white)),
+              content: const Text(
+                'Este dispositivo no cuenta con soporte para autenticación biométrica o no está configurada.',
+                style: TextStyle(color: AppTheme.textGray),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('Entendido', style: TextStyle(color: AppTheme.accentOrange)),
+                ),
+              ],
+            ),
+          );
+        }
+        return;
+      }
+
+      final prefs = await SharedPreferences.getInstance();
+      final hasEnabledBio = prefs.getBool('bio_enabled') ?? false;
+      if (!hasEnabledBio) {
+        if (mounted) {
+          showDialog(
+            context: context,
+            builder: (context) => AlertDialog(
+              backgroundColor: AppTheme.surfaceDark,
+              title: const Text('Huella Dactilar', style: TextStyle(color: Colors.white)),
+              content: const Text(
+                'Inicia sesión manualmente por primera vez para activar el ingreso rápido con huella dactilar.',
+                style: TextStyle(color: AppTheme.textGray),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('Entendido', style: TextStyle(color: AppTheme.accentOrange)),
+                ),
+              ],
+            ),
+          );
+        }
+        return;
+      }
+
+      final cachedRole = prefs.getString('bio_role') ?? '';
+      if (cachedRole != _selectedRole) {
+        if (mounted) {
+          showDialog(
+            context: context,
+            builder: (context) => AlertDialog(
+              backgroundColor: AppTheme.surfaceDark,
+              title: const Text('Rol Diferente', style: TextStyle(color: Colors.white)),
+              content: Text(
+                'La huella registrada pertenece al rol "${cachedRole.toUpperCase()}". Inicia sesión manualmente para actualizar tu huella al rol actual o selecciona el rol correspondiente.',
+                style: const TextStyle(color: AppTheme.textGray),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('Entendido', style: TextStyle(color: AppTheme.accentOrange)),
+                ),
+              ],
+            ),
+          );
+        }
+        return;
+      }
+
+      await _handleBiometricLogin();
+    } catch (e) {
+      debugPrint('Error en botón biométrico: $e');
+    }
+  }
 
   Future<void> _handleLogin() async {
     if (_selectedRole == null) {
@@ -36,17 +188,27 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     
     final authService = ref.read(authServiceProvider);
     final identifier = _idController.text.trim();
+    final password = _passwordController.text.trim();
     
-    // El backend espera el nombre de la colección en plural para la ruta
-    // Roles: inversionista -> inversionistas, comprador -> compradores, operador -> operadores
     String apiRole = _selectedRole!;
     if (apiRole == 'inversionista') apiRole = 'inversionistas';
     if (apiRole == 'comprador') apiRole = 'compradores';
     if (apiRole == 'operador') apiRole = 'operadores';
 
-    final user = await authService.signIn(identifier, _passwordController.text.trim(), apiRole, originalRole: _selectedRole!);
+    final user = await authService.signIn(identifier, password, apiRole, originalRole: _selectedRole!);
     
     if (user != null) {
+      // Guardar credenciales locales para biometría rápida
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('bio_identifier', identifier);
+        await prefs.setString('bio_password', password);
+        await prefs.setString('bio_role', _selectedRole!);
+        await prefs.setBool('bio_enabled', true);
+      } catch (e) {
+        debugPrint('Error guardando preferencias biométricas: $e');
+      }
+
       // Actualizar el estado global
       ref.read(authStateProvider.notifier).state = user;
       
@@ -231,14 +393,32 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             ),
           ),
           const SizedBox(height: 40),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: _isLoading ? null : _handleLogin,
-              child: _isLoading 
-                ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) 
-                : const Text('AUTENTICAR ACCESO'),
-            ),
+          Row(
+            children: [
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: _isLoading ? null : _handleLogin,
+                  child: _isLoading 
+                    ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) 
+                    : const Text('AUTENTICAR ACCESO'),
+                ),
+              ),
+              const SizedBox(width: 16),
+              Container(
+                height: 52,
+                width: 52,
+                decoration: BoxDecoration(
+                  color: AppTheme.accentOrange.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppTheme.accentOrange.withOpacity(0.3)),
+                ),
+                child: IconButton(
+                  icon: const Icon(Icons.fingerprint_rounded, color: AppTheme.accentOrange, size: 28),
+                  onPressed: _isLoading ? null : _onBiometricPressed,
+                  tooltip: 'Inicio rápido con huella dactilar',
+                ),
+              ),
+            ],
           ),
         ],
       ),

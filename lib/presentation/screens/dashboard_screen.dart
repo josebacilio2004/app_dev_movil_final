@@ -77,11 +77,6 @@ class DashboardScreen extends ConsumerWidget {
   Widget _buildDashboardSelector(BuildContext context, Usuario user, WidgetRef ref) {
     String username = user.nombre;
     final role = user.rol.toLowerCase();
-    if (role == 'inversionista') {
-      username = 'Ssamira Xiomara Checya Peña';
-    } else if (role == 'comprador') {
-      username = 'Alicia Peña Granilla';
-    }
 
     return SingleChildScrollView(
       physics: const BouncingScrollPhysics(),
