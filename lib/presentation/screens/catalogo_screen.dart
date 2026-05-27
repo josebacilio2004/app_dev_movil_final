@@ -607,7 +607,7 @@ class _CatalogoScreenState extends ConsumerState<CatalogoScreen> with SingleTick
                   children: [
                     // Imagen lateral
                     Container(
-                      width: 100,
+                      width: 110,
                       decoration: BoxDecoration(
                         border: Border(
                           right: BorderSide(color: Colors.white.withOpacity(0.04)),
@@ -617,7 +617,7 @@ class _CatalogoScreenState extends ConsumerState<CatalogoScreen> with SingleTick
                         children: [
                           Image.network(
                             imageUrl,
-                            width: 100,
+                            width: 110,
                             height: double.infinity,
                             fit: BoxFit.cover,
                             loadingBuilder: (context, child, loadingProgress) {
