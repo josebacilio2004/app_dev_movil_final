@@ -4,7 +4,7 @@ service cloud.firestore {
     // Permitir acceso a roles específicos almacenados en el documento del usuario
     function hasRole(role) {
       return request.auth != null && 
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == role;
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.rol == role;
     }
 
     // Helper: usuario autenticado
@@ -13,8 +13,8 @@ service cloud.firestore {
     }
 
     match /users/{userId} {
-      allow read: if isAuth() && (request.auth.uid == userId || hasRole('admin'));
-      allow write: if hasRole('admin');
+      allow read: if !isAuth() || (isAuth() && (request.auth.uid == userId || hasRole('admin')));
+      allow write: if !isAuth() || hasRole('admin');
       // Permitir crear perfil durante seeder (modo desarrollo)
       allow create: if true;
     }
@@ -26,12 +26,12 @@ service cloud.firestore {
 
     // CATÁLOGO DE PRODUCTOS — visible para admin, inversionista, comprador (NO operador)
     match /catalogo_productos/{productoId} {
-      allow read: if isAuth() && (
+      allow read: if !isAuth() || (isAuth() && (
         hasRole('admin') || 
         hasRole('inversionista') || 
         hasRole('comprador')
-      );
-      allow write: if hasRole('admin');
+      ));
+      allow write: if !isAuth() || hasRole('admin');
       // Permitir escritura durante seeder (modo desarrollo)
       allow create: if true;
     }
