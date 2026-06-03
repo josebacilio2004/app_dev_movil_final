@@ -7,9 +7,13 @@ import 'package:gestor_invetarios_pedidos_app/firebase_options.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:gestor_invetarios_pedidos_app/core/services/notification_service.dart';
 import 'package:gestor_invetarios_pedidos_app/data/seeders/seeder_initializer.dart';
+import 'package:gestor_invetarios_pedidos_app/data/services/google_drive_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // Cargar URL guardada de Google Drive
+  await GoogleDriveService.loadPersistedUrl();
   
   // Inicialización de Localización para evitar errores de Intl en Web
   await initializeDateFormatting('es_PE', null);
