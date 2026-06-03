@@ -9,7 +9,7 @@ Una aplicación móvil y web multiplataforma desarrollada en **Flutter** para la
 * **Requena Lavi Aldo Alexandre**
 * **Bacilio De La Cruz José Anthony**
 * **Mendoza Alarcón Maylit**
-* **Cristina Celis**
+* **Cristian Celis**
 
 ---
 
