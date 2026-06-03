@@ -233,6 +233,12 @@ class _CatalogoScreenState extends ConsumerState<CatalogoScreen> with SingleTick
   }
 
   Future<void> _checkConnectivity() async {
+    if (kIsWeb) {
+      if (mounted && _isOffline) {
+        setState(() => _isOffline = false);
+      }
+      return;
+    }
     try {
       final response = await Dio().get('https://clients3.google.com/generate_204').timeout(const Duration(seconds: 4));
       if (response.statusCode == 204) {

@@ -74,13 +74,18 @@ class GeolocalizacionService {
             'tipo': tipo,
           };
 
-          debugPrint('💾 Firestore: Guardando ruta en la colección "geolocalizacion_rutas"...');
-          final ref = await _db.collection('geolocalizacion_rutas').add(rutaMap);
-          
-          debugPrint('✅ Geolocalizacion: Ruta guardada con ID: ${ref.id}');
+          String docId = 'temp-${DateTime.now().millisecondsSinceEpoch}';
+          try {
+            debugPrint('💾 Firestore: Guardando ruta en la colección "geolocalizacion_rutas"...');
+            final ref = await _db.collection('geolocalizacion_rutas').add(rutaMap);
+            docId = ref.id;
+            debugPrint('✅ Geolocalizacion: Ruta guardada con ID: $docId');
+          } catch (fireErr) {
+            debugPrint('⚠️ Firestore: No se pudo guardar el registro de ruta (Permisos/Conexión): $fireErr');
+          }
 
           return RutaModel(
-            id: ref.id,
+            id: docId,
             origenLat: origenLat,
             origenLng: origenLng,
             destinoLat: destinoLat,
