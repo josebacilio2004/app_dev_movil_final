@@ -14,23 +14,21 @@ class SeederInitializer {
     _hasRun = true;
 
     try {
-      // Limpiar sesiones huérfanas en el cliente web
-      try {
-        await FirebaseAuth.instance.signOut();
-      } catch (_) {}
-
       final service = FirestoreService();
-      final alreadySeeded = await service.isCatalogoSeeded();
       
+      // Verificar si ya está sembrado
+      final alreadySeeded = await service.isCatalogoSeeded();
       if (alreadySeeded) {
-        debugPrint('ℹ️ Catálogo ya poblado, saltando seeder.');
+        debugPrint('ℹ️ Seeder: El catálogo ya está inicializado (45 productos). Omitiendo resembrado.');
         return false;
       }
-
-      debugPrint('🌱 Ejecutando seeder de catálogo (45 productos)...');
+      
+      debugPrint('🌱 Limpiando catálogo antiguo y ejecutando nuevo seeder (45 productos)...');
+      await service.clearCatalogoProductos();
+      
       final productos = ProductSeeder.generarCatalogo();
       final count = await service.seedCatalogoProductos(productos);
-      debugPrint('✅ Seeder completado: $count productos insertados.');
+      debugPrint('✅ Seeder completado: $count productos insertados de forma limpia.');
       return true;
     } catch (e) {
       debugPrint('❌ Error en seeder: $e');

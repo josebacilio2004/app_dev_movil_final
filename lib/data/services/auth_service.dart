@@ -86,6 +86,54 @@ class AuthService {
     }
   }
 
+  /// Registra un nuevo usuario en Firebase Auth y crea su perfil en Firestore
+  Future<Usuario?> signUp({
+    required String email,
+    required String password,
+    required String nombre,
+    required String usuario,
+    required String rol,
+    String? dni,
+  }) async {
+    try {
+      debugPrint('🆕 Registrando usuario en Firebase Auth: $email...');
+      final userCredential = await _auth.createUserWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+
+      final uid = userCredential.user?.uid;
+      if (uid == null) {
+        debugPrint('❌ UID de usuario de Firebase es nulo después de registrar.');
+        return null;
+      }
+
+      // Guardar perfil en Firestore
+      debugPrint('💾 Guardando perfil en Firestore para UID: $uid...');
+      await _db.collection('users').doc(uid).set({
+        'nombre': nombre,
+        'usuario': usuario,
+        'email': email,
+        'rol': rol,
+        'dni': dni,
+        'activo': true,
+        'fecha_creacion': FieldValue.serverTimestamp(),
+      });
+
+      _currentUser = Usuario(
+        id: uid,
+        nombre: nombre,
+        usuario: usuario,
+        rol: rol,
+      );
+
+      return _currentUser;
+    } catch (e) {
+      debugPrint('❌ Error en signUp de AuthService: $e');
+      rethrow;
+    }
+  }
+
   /// Cierra sesión de Firebase y limpia el cache
   Future<void> signOut() async {
     try {

@@ -34,17 +34,17 @@ class CartScreen extends ConsumerWidget {
     }
     switch (producto.categoria) {
       case 'Herramientas Manuales':
-        return 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=500&auto=format&fit=crop';
+        return 'https://images.unsplash.com/photo-1534224039826-c7a0dea0e66a?w=500&auto=format&fit=crop';
       case 'Herramientas Eléctricas':
         return 'https://images.unsplash.com/photo-1504148455328-c376907d081c?w=500&auto=format&fit=crop';
       case 'Materiales de Construcción':
-        return 'https://images.unsplash.com/photo-1581092921461-eab62e97a780?w=500&auto=format&fit=crop';
+        return 'https://images.unsplash.com/photo-1541888946425-d81bb19240f5?w=500&auto=format&fit=crop';
       case 'Seguridad Industrial':
-        return 'https://images.unsplash.com/photo-1598501479109-22a4625cf6e7?w=500&auto=format&fit=crop';
+        return 'https://images.unsplash.com/photo-1508962914676-134849a727f0?w=500&auto=format&fit=crop';
       case 'Fijaciones y Tornillería':
-        return 'https://images.unsplash.com/photo-1530124560072-aae8d7db1eb6?w=500&auto=format&fit=crop';
+        return 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=500&auto=format&fit=crop';
       case 'Abrasivos y Consumibles':
-        return 'https://images.unsplash.com/photo-1572981779307-38b8cabb2407?w=500&auto=format&fit=crop';
+        return 'https://images.unsplash.com/photo-1504307651254-35680f356dfd?w=500&auto=format&fit=crop';
       default:
         return 'https://images.unsplash.com/photo-1534224039826-c7a0dea0e66a?w=500&auto=format&fit=crop';
     }
@@ -191,6 +191,8 @@ class CartScreen extends ConsumerWidget {
               child: Image.network(
                 imageUrl,
                 fit: BoxFit.cover,
+                cacheWidth: 180,
+                cacheHeight: 220,
                 errorBuilder: (context, error, stackTrace) => Container(
                   color: color.withOpacity(0.1),
                   child: Center(

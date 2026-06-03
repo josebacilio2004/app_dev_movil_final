@@ -6,6 +6,7 @@ import 'package:gestor_invetarios_pedidos_app/presentation/providers/database_pr
 import 'package:gestor_invetarios_pedidos_app/data/models/producto.dart';
 import 'package:gestor_invetarios_pedidos_app/core/utils/numeric_utils.dart';
 import 'package:gestor_invetarios_pedidos_app/presentation/widgets/common/custom_data_table.dart';
+import 'package:gestor_invetarios_pedidos_app/presentation/widgets/common/glass_container.dart';
 import 'package:fl_chart/fl_chart.dart';
 
 class AdminDashboard extends ConsumerStatefulWidget {
@@ -115,13 +116,9 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
   }
 
   Widget _statCard(String label, String value, IconData icon, Color color) {
-    return Container(
+    return GlassContainer(
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppTheme.surfaceDark,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withOpacity(0.05)),
-      ),
+      borderRadius: 12,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.center,
@@ -146,13 +143,9 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
       child: Row(
         children: [
           Expanded(
-            child: Container(
+            child: GlassContainer(
               padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: AppTheme.surfaceDark,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.white.withOpacity(0.05)),
-              ),
+              borderRadius: 12,
               child: PieChart(
                 PieChartData(
                   sections: [
@@ -166,13 +159,9 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
           ),
           const SizedBox(width: 12),
           Expanded(
-            child: Container(
+            child: GlassContainer(
               padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: AppTheme.surfaceDark,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.white.withOpacity(0.05)),
-              ),
+              borderRadius: 12,
               child: BarChart(
                 BarChartData(
                   barGroups: [

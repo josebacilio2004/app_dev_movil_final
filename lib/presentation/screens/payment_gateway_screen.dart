@@ -8,6 +8,11 @@ import 'package:gestor_invetarios_pedidos_app/presentation/providers/auth_provid
 import 'package:gestor_invetarios_pedidos_app/presentation/providers/cart_provider.dart';
 import 'package:gestor_invetarios_pedidos_app/presentation/providers/catalogo_provider.dart';
 import 'package:gestor_invetarios_pedidos_app/presentation/providers/database_provider.dart';
+import 'package:gestor_invetarios_pedidos_app/core/services/notification_service.dart';
+import 'package:gestor_invetarios_pedidos_app/data/models/cart_item.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
 
 class PaymentGatewayScreen extends ConsumerStatefulWidget {
   const PaymentGatewayScreen({super.key});
@@ -26,6 +31,9 @@ class _PaymentGatewayScreenState extends ConsumerState<PaymentGatewayScreen> wit
   bool _isProcessing = false;
   bool _paymentSuccess = false;
   String _generatedReceiptId = '';
+
+  List<CartItem> _purchasedItems = [];
+  double _purchasedTotal = 0.0;
 
   // Animación para el giro de la tarjeta (CVV focus)
   late AnimationController _flipController;
@@ -98,6 +106,9 @@ class _PaymentGatewayScreenState extends ConsumerState<PaymentGatewayScreen> wit
     final totalToPay = ref.read(cartTotalProvider);
     final cartCount = ref.read(cartCountProvider);
 
+    _purchasedItems = List.from(cartItems);
+    _purchasedTotal = totalToPay;
+
     if (user == null) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -150,6 +161,20 @@ class _PaymentGatewayScreenState extends ConsumerState<PaymentGatewayScreen> wit
         _isProcessing = false;
         _paymentSuccess = true;
       });
+
+      // Feedback Háptico Premium
+      HapticFeedback.heavyImpact();
+
+      // Disparar Notificación Local de Pedido Exitoso
+      try {
+        await NotificationService().showNotification(
+          id: Random().nextInt(100000),
+          title: '🛍️ ¡Pedido Completado Exitosamente!',
+          body: 'El recibo $_generatedReceiptId por S/ ${totalToPay.toStringAsFixed(2)} ha sido registrado y está pendiente de despacho.',
+        );
+      } catch (err) {
+        debugPrint('Error al mostrar notificación local: $err');
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -162,6 +187,224 @@ class _PaymentGatewayScreenState extends ConsumerState<PaymentGatewayScreen> wit
       setState(() {
         _isProcessing = false;
       });
+    }
+  }
+
+  Future<void> _generatePdfInvoice() async {
+    final pdf = pw.Document();
+
+    pdf.addPage(
+      pw.Page(
+        pageFormat: PdfPageFormat.a4,
+        build: (pw.Context context) {
+          return pw.Padding(
+            padding: const pw.EdgeInsets.all(24),
+            child: pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                // Header
+                pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  children: [
+                    pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.start,
+                      children: [
+                        pw.Text(
+                          'COMERCIALIZADORA ALY',
+                          style: pw.TextStyle(
+                            fontSize: 22,
+                            fontWeight: pw.FontWeight.bold,
+                            color: PdfColors.orange,
+                          ),
+                        ),
+                        pw.Text('Herramientas y Materiales de Construccion'),
+                        pw.Text('RUC: 20123456789'),
+                        pw.Text('Direccion: Calle Real 456, Huancayo'),
+                      ],
+                    ),
+                    pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.end,
+                      children: [
+                        pw.Container(
+                          padding: const pw.EdgeInsets.all(8),
+                          decoration: pw.BoxDecoration(
+                            border: pw.Border.all(color: PdfColors.grey),
+                            borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
+                          ),
+                          child: pw.Column(
+                            children: [
+                              pw.Text(
+                                'BOLETA ELECTRONICA',
+                                style: pw.TextStyle(
+                                  fontWeight: pw.FontWeight.bold,
+                                  fontSize: 12,
+                                ),
+                              ),
+                              pw.Text(
+                                _generatedReceiptId,
+                                style: pw.TextStyle(
+                                  fontWeight: pw.FontWeight.bold,
+                                  color: PdfColors.orange,
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                pw.SizedBox(height: 30),
+                // Client Info
+                pw.Text(
+                  'DATOS DEL CLIENTE',
+                  style: pw.TextStyle(
+                    fontWeight: pw.FontWeight.bold,
+                    fontSize: 10,
+                    color: PdfColors.orange,
+                  ),
+                ),
+                pw.Divider(color: PdfColors.orange, thickness: 1),
+                pw.SizedBox(height: 8),
+                pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  children: [
+                    pw.Text('Nombre: ${ref.read(authStateProvider)?.nombre ?? "Cliente General"}'),
+                    pw.Text('Fecha: ${DateTime.now().toString().split(' ')[0]}'),
+                  ],
+                ),
+                pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  children: [
+                    pw.Text('Usuario: ${ref.read(authStateProvider)?.usuario ?? ""}'),
+                    pw.Text('Metodo Pago: Tarjeta de Credito/Debito'),
+                  ],
+                ),
+                pw.SizedBox(height: 30),
+                // Items Table
+                pw.Text(
+                  'DETALLE DE COMPRA',
+                  style: pw.TextStyle(
+                    fontWeight: pw.FontWeight.bold,
+                    fontSize: 10,
+                    color: PdfColors.orange,
+                  ),
+                ),
+                pw.Divider(color: PdfColors.orange, thickness: 1),
+                pw.SizedBox(height: 8),
+                pw.Table(
+                  border: pw.TableBorder.symmetric(
+                    inside: const pw.BorderSide(color: PdfColors.grey300, width: 0.5),
+                  ),
+                  columnWidths: {
+                    0: const pw.FlexColumnWidth(3),
+                    1: const pw.FlexColumnWidth(1),
+                    2: const pw.FlexColumnWidth(1),
+                    3: const pw.FlexColumnWidth(1),
+                  },
+                  children: [
+                    pw.TableRow(
+                      decoration: const pw.BoxDecoration(color: PdfColors.grey100),
+                      children: [
+                        pw.Padding(
+                          padding: const pw.EdgeInsets.all(6),
+                          child: pw.Text('Producto', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 10)),
+                        ),
+                        pw.Padding(
+                          padding: const pw.EdgeInsets.all(6),
+                          child: pw.Text('Cant.', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 10)),
+                        ),
+                        pw.Padding(
+                          padding: const pw.EdgeInsets.all(6),
+                          child: pw.Text('P. Unitario', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 10)),
+                        ),
+                        pw.Padding(
+                          padding: const pw.EdgeInsets.all(6),
+                          child: pw.Text('Subtotal', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 10)),
+                        ),
+                      ],
+                    ),
+                    ..._purchasedItems.map((item) {
+                      return pw.TableRow(
+                        children: [
+                          pw.Padding(
+                            padding: const pw.EdgeInsets.all(6),
+                            child: pw.Text(item.producto.nombre, style: const pw.TextStyle(fontSize: 9)),
+                          ),
+                          pw.Padding(
+                            padding: const pw.EdgeInsets.all(6),
+                            child: pw.Text('${item.cantidad} ${item.producto.unidad}', style: const pw.TextStyle(fontSize: 9)),
+                          ),
+                          pw.Padding(
+                            padding: const pw.EdgeInsets.all(6),
+                            child: pw.Text('S/ ${item.producto.precioUnitario.toStringAsFixed(2)}', style: const pw.TextStyle(fontSize: 9)),
+                          ),
+                          pw.Padding(
+                            padding: const pw.EdgeInsets.all(6),
+                            child: pw.Text('S/ ${item.subtotal.toStringAsFixed(2)}', style: const pw.TextStyle(fontSize: 9)),
+                          ),
+                        ],
+                      );
+                    }),
+                  ],
+                ),
+                pw.SizedBox(height: 20),
+                // Totals
+                pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.end,
+                  children: [
+                    pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.end,
+                      children: [
+                        pw.Row(
+                          children: [
+                            pw.Text('Subtotal: ', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                            pw.Text('S/ ${(_purchasedTotal / 1.18).toStringAsFixed(2)}'),
+                          ],
+                        ),
+                        pw.Row(
+                          children: [
+                            pw.Text('I.G.V. (18%): ', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                            pw.Text('S/ ${(_purchasedTotal - (_purchasedTotal / 1.18)).toStringAsFixed(2)}'),
+                          ],
+                        ),
+                        pw.Divider(color: PdfColors.grey),
+                        pw.Row(
+                          children: [
+                            pw.Text('Total a Pagar: ', style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold, color: PdfColors.orange)),
+                            pw.Text('S/ ${_purchasedTotal.toStringAsFixed(2)}', style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold, color: PdfColors.orange)),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                pw.Spacer(),
+                // Footer
+                pw.Center(
+                  child: pw.Column(
+                    children: [
+                      pw.Text('Gracias por comprar en Comercializadora Aly!', style: pw.TextStyle(fontStyle: pw.FontStyle.italic, fontSize: 10)),
+                      pw.SizedBox(height: 4),
+                      pw.Text('Representacion impresa de la Boleta Electronica.', style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey600)),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+
+    try {
+      await Printing.layoutPdf(
+        onLayout: (PdfPageFormat format) async => pdf.save(),
+        name: 'Boleta_Aly_$_generatedReceiptId.pdf',
+      );
+    } catch (e) {
+      debugPrint('Error al imprimir/guardar PDF: $e');
     }
   }
 
@@ -750,6 +993,18 @@ class _PaymentGatewayScreenState extends ConsumerState<PaymentGatewayScreen> wit
                 ],
               ),
               const SizedBox(height: 32),
+              ElevatedButton.icon(
+                onPressed: _generatePdfInvoice,
+                icon: const Icon(Icons.picture_as_pdf_rounded),
+                label: const Text('IMPRIMIR / DESCARGAR BOLETA'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.accentOrange,
+                  foregroundColor: Colors.white,
+                  minimumSize: const Size(double.infinity, 50),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+              const SizedBox(height: 12),
               ElevatedButton(
                 onPressed: () {
                   // Volver al inicio o catálogo

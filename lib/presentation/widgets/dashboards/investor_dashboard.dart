@@ -7,6 +7,7 @@ import 'package:gestor_invetarios_pedidos_app/presentation/providers/database_pr
 import 'package:gestor_invetarios_pedidos_app/core/utils/numeric_utils.dart';
 import 'package:gestor_invetarios_pedidos_app/presentation/providers/buyer_nav_provider.dart';
 import 'package:gestor_invetarios_pedidos_app/presentation/widgets/common/custom_data_table.dart';
+import 'package:gestor_invetarios_pedidos_app/presentation/widgets/common/glass_container.dart';
 import 'package:gestor_invetarios_pedidos_app/data/models/producto.dart';
 import 'package:fl_chart/fl_chart.dart';
 
@@ -112,16 +113,8 @@ class InvestorDashboard extends ConsumerWidget {
   }
 
   Widget _statCard(String label, String value, Color color) {
-    return Container(
+    return GlassContainer(
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppTheme.surfaceDark,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withOpacity(0.05)),
-        boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 10, offset: const Offset(0, 4)),
-        ],
-      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.center,
@@ -151,13 +144,8 @@ class InvestorDashboard extends ConsumerWidget {
   }
 
   Widget _chartContainer(String title, Widget chart) {
-    return Container(
+    return GlassContainer(
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppTheme.surfaceDark,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withOpacity(0.05)),
-      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
