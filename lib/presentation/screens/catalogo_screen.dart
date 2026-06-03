@@ -8,6 +8,12 @@ import 'package:gestor_invetarios_pedidos_app/presentation/screens/cart_screen.d
 import 'package:gestor_invetarios_pedidos_app/data/services/google_drive_service.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:async';
+import 'dart:convert';
+import 'package:flutter/services.dart';
+import 'package:shimmer/shimmer.dart';
+import 'package:speech_to_text/speech_to_text.dart';
+import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 class CatalogoScreen extends ConsumerStatefulWidget {
   final String userRole;
@@ -24,6 +30,15 @@ class _CatalogoScreenState extends ConsumerState<CatalogoScreen> with SingleTick
   bool _isGridView = false;
   late AnimationController _filterAnimController;
   late Animation<double> _filterAnimation;
+
+  // Búsqueda por Voz
+  final SpeechToText _speechToText = SpeechToText();
+  bool _speechEnabled = false;
+  bool _isListening = false;
+
+  // Estado Offline
+  bool _isOffline = false;
+  Timer? _connectivityTimer;
 
   // Iconos de categoría para el UI
   static const Map<String, IconData> _categoryIcons = {
@@ -48,6 +63,87 @@ class _CatalogoScreenState extends ConsumerState<CatalogoScreen> with SingleTick
     'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.0 Mobile/15E148 Safari/604.1',
   };
 
+  Widget _buildProductImageWidget(String imageUrl, String categoria, {double? width, double? height, BoxFit fit = BoxFit.cover, double placeholderIconSize = 28}) {
+    final color = _categoryColors[categoria] ?? AppTheme.accentOrange;
+    
+    if (imageUrl.trim().isEmpty) {
+      return Container(
+        color: color.withOpacity(0.1),
+        child: Center(
+          child: Icon(
+            _categoryIcons[categoria] ?? Icons.category_rounded,
+            color: color,
+            size: placeholderIconSize,
+          ),
+        ),
+      );
+    }
+    
+    if (imageUrl.startsWith('data:image/')) {
+      try {
+        final base64String = imageUrl.split(',').last;
+        final bytes = base64Decode(base64String);
+        return Image.memory(
+          bytes,
+          width: width,
+          height: height,
+          fit: fit,
+          errorBuilder: (context, error, stackTrace) => Container(
+            color: color.withOpacity(0.1),
+            child: Center(
+              child: Icon(
+                _categoryIcons[categoria] ?? Icons.category_rounded,
+                color: color,
+                size: placeholderIconSize,
+              ),
+            ),
+          ),
+        );
+      } catch (e) {
+        debugPrint('Error decodificando base64: $e');
+      }
+    }
+    
+    final int? cWidth = (width != null && width.isFinite && width > 0) ? (width * 2.0).toInt() : 300;
+    final int? cHeight = (height != null && height.isFinite && height > 0) ? (height * 2.0).toInt() : 300;
+
+    return Image.network(
+      imageUrl,
+      headers: (imageUrl.contains('google') || imageUrl.contains('drive')) ? _imageHeaders : null,
+      width: width,
+      height: height,
+      fit: fit,
+      cacheWidth: cWidth,
+      cacheHeight: cHeight,
+      loadingBuilder: (context, child, loadingProgress) {
+        if (loadingProgress == null) return child;
+        return Container(
+          color: Colors.white.withOpacity(0.03),
+          child: const Center(
+            child: SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                valueColor: AlwaysStoppedAnimation<Color>(AppTheme.accentOrange),
+              ),
+            ),
+          ),
+        );
+      },
+      errorBuilder: (context, error, stackTrace) => Container(
+        color: color.withOpacity(0.1),
+        child: Center(
+          child: Icon(
+            _categoryIcons[categoria] ?? Icons.category_rounded,
+            color: color,
+            size: placeholderIconSize,
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   void initState() {
     super.initState();
@@ -61,6 +157,13 @@ class _CatalogoScreenState extends ConsumerState<CatalogoScreen> with SingleTick
       parent: _filterAnimController,
       curve: Curves.easeInOut,
     );
+
+    // Inicializar reconocedor de voz
+    _initSpeech();
+
+    // Iniciar chequeo de conectividad periódico (cada 8 segundos)
+    _checkConnectivity();
+    _connectivityTimer = Timer.periodic(const Duration(seconds: 8), (_) => _checkConnectivity());
   }
 
   @override
@@ -68,6 +171,8 @@ class _CatalogoScreenState extends ConsumerState<CatalogoScreen> with SingleTick
     _searchController.dispose();
     _debounce?.cancel();
     _filterAnimController.dispose();
+    _connectivityTimer?.cancel();
+    _speechToText.stop();
     // Limpiar el estado de búsqueda y filtros al salir de la pantalla para evitar estados persistentes residuales
     Future.microtask(() {
       if (ref.context.mounted) {
@@ -86,6 +191,68 @@ class _CatalogoScreenState extends ConsumerState<CatalogoScreen> with SingleTick
     });
   }
 
+  void _initSpeech() async {
+    try {
+      _speechEnabled = await _speechToText.initialize(
+        onStatus: (status) {
+          debugPrint('🎙️ Speech Status: $status');
+          if (status == 'notListening' || status == 'done') {
+            setState(() => _isListening = false);
+          }
+        },
+        onError: (error) {
+          debugPrint('🎙️ Speech Error: $error');
+          setState(() => _isListening = false);
+        },
+      );
+      setState(() {});
+    } catch (e) {
+      debugPrint('🎙️ Speech init failed: $e');
+    }
+  }
+
+  void _startListening() async {
+    if (!_speechEnabled) {
+      _initSpeech();
+      return;
+    }
+    setState(() => _isListening = true);
+    await _speechToText.listen(
+      onResult: (result) {
+        setState(() {
+          _searchController.text = result.recognizedWords;
+        });
+        ref.read(searchQueryProvider.notifier).state = result.recognizedWords;
+      },
+    );
+  }
+
+  void _stopListening() async {
+    await _speechToText.stop();
+    setState(() => _isListening = false);
+  }
+
+  Future<void> _checkConnectivity() async {
+    if (kIsWeb) {
+      if (mounted && _isOffline) {
+        setState(() => _isOffline = false);
+      }
+      return;
+    }
+    try {
+      final response = await Dio().get('https://clients3.google.com/generate_204').timeout(const Duration(seconds: 4));
+      if (response.statusCode == 204) {
+        if (mounted && _isOffline) {
+          setState(() => _isOffline = false);
+        }
+      }
+    } catch (_) {
+      if (mounted && !_isOffline) {
+        setState(() => _isOffline = true);
+      }
+    }
+  }
+
   void _toggleFilters() {
     setState(() {
       _showFilters = !_showFilters;
@@ -100,7 +267,10 @@ class _CatalogoScreenState extends ConsumerState<CatalogoScreen> with SingleTick
   void _clearFilters() {
     ref.read(searchQueryProvider.notifier).state = '';
     ref.read(selectedCategoryProvider.notifier).state = null;
+    ref.read(selectedBrandProvider.notifier).state = null;
     ref.read(soloDisponiblesProvider.notifier).state = false;
+    ref.read(precioMinProvider.notifier).state = 0.0;
+    ref.read(precioMaxProvider.notifier).state = 999999.0;
     _searchController.clear();
   }
 
@@ -111,6 +281,10 @@ class _CatalogoScreenState extends ConsumerState<CatalogoScreen> with SingleTick
     final resultCount = ref.watch(searchResultCountProvider);
     final query = ref.watch(searchQueryProvider);
     final selectedCategory = ref.watch(selectedCategoryProvider);
+    final selectedBrand = ref.watch(selectedBrandProvider);
+    final precioMin = ref.watch(precioMinProvider);
+    final precioMax = ref.watch(precioMaxProvider);
+    final isFilterActive = query.isNotEmpty || selectedCategory != null || selectedBrand != null || precioMin > 0 || precioMax < 999999;
 
     return Scaffold(
       backgroundColor: AppTheme.primaryDark,
@@ -181,7 +355,7 @@ class _CatalogoScreenState extends ConsumerState<CatalogoScreen> with SingleTick
           ),
           IconButton(
             icon: Badge(
-              isLabelVisible: selectedCategory != null || query.isNotEmpty,
+              isLabelVisible: isFilterActive,
               backgroundColor: AppTheme.accentOrange,
               smallSize: 8,
               child: Icon(
@@ -191,7 +365,7 @@ class _CatalogoScreenState extends ConsumerState<CatalogoScreen> with SingleTick
             ),
             onPressed: _toggleFilters,
           ),
-          if (query.isNotEmpty || selectedCategory != null)
+          if (isFilterActive)
             IconButton(
               icon: const Icon(Icons.clear_all_rounded, size: 22),
               onPressed: _clearFilters,
@@ -201,6 +375,27 @@ class _CatalogoScreenState extends ConsumerState<CatalogoScreen> with SingleTick
       ),
       body: Column(
         children: [
+          // === BARRA DE CONECTIVIDAD OFF-LINE ===
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 300),
+            height: _isOffline ? 36 : 0,
+            width: double.infinity,
+            color: AppTheme.errorRed.withOpacity(0.9),
+            alignment: Alignment.center,
+            child: _isOffline
+                ? const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.wifi_off_rounded, color: Colors.white, size: 16),
+                      SizedBox(width: 8),
+                      Text(
+                        'Modo Offline Activo - Cargando datos locales desde caché',
+                        style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  )
+                : const SizedBox(),
+          ),
           // === BARRA DE BÚSQUEDA ===
           _buildSearchBar(),
           // === FILTROS EXPANDIBLES ===
@@ -212,9 +407,20 @@ class _CatalogoScreenState extends ConsumerState<CatalogoScreen> with SingleTick
           _buildCategoryChips(),
           // === LISTA DE RESULTADOS ===
           Expanded(
-            child: results.isEmpty
-                ? _buildEmptyState(query)
-                : _buildProductGrid(results),
+            child: ref.watch(catalogoStreamProvider).when(
+              data: (_) {
+                return results.isEmpty
+                    ? _buildEmptyState(query)
+                    : _buildProductGrid(results);
+              },
+              loading: () => _buildShimmerGrid(),
+              error: (err, stack) => Center(
+                child: Text(
+                  'Error al cargar catálogo: $err',
+                  style: const TextStyle(color: AppTheme.errorRed),
+                ),
+              ),
+            ),
           ),
         ],
       ),
@@ -227,10 +433,10 @@ class _CatalogoScreenState extends ConsumerState<CatalogoScreen> with SingleTick
       decoration: BoxDecoration(
         color: AppTheme.surfaceDark,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withOpacity(0.06)),
+        border: Border.all(color: _isListening ? AppTheme.accentOrange : Colors.white.withOpacity(0.06)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.2),
+            color: _isListening ? AppTheme.accentOrange.withOpacity(0.15) : Colors.black.withOpacity(0.2),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -241,24 +447,38 @@ class _CatalogoScreenState extends ConsumerState<CatalogoScreen> with SingleTick
         onChanged: _onSearchChanged,
         style: const TextStyle(fontSize: 14, color: Colors.white),
         decoration: InputDecoration(
-          hintText: '🔍 Buscar por nombre, marca, categoría...',
+          hintText: _isListening ? '🎤 Escuchando... habla ahora' : '🔍 Buscar por nombre, marca, categoría...',
           hintStyle: TextStyle(
-            color: Colors.white.withOpacity(0.3),
+            color: _isListening ? AppTheme.accentOrange : Colors.white.withOpacity(0.3),
             fontSize: 13,
+            fontWeight: _isListening ? FontWeight.bold : FontWeight.normal,
           ),
           prefixIcon: const Padding(
             padding: EdgeInsets.only(left: 16, right: 8),
             child: Icon(Icons.search_rounded, color: AppTheme.accentOrange, size: 22),
           ),
-          suffixIcon: _searchController.text.isNotEmpty
-              ? IconButton(
+          suffixIcon: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                icon: Icon(
+                  _isListening ? Icons.mic_rounded : Icons.mic_none_rounded,
+                  color: _isListening ? AppTheme.accentOrange : AppTheme.textGray,
+                ),
+                tooltip: 'Búsqueda por Voz',
+                onPressed: _isListening ? _stopListening : _startListening,
+              ),
+              if (_searchController.text.isNotEmpty)
+                IconButton(
                   icon: const Icon(Icons.close_rounded, size: 18, color: AppTheme.textGray),
                   onPressed: () {
                     _searchController.clear();
                     ref.read(searchQueryProvider.notifier).state = '';
+                    setState(() {});
                   },
-                )
-              : null,
+                ),
+            ],
+          ),
           border: InputBorder.none,
           enabledBorder: InputBorder.none,
           focusedBorder: InputBorder.none,
@@ -270,6 +490,10 @@ class _CatalogoScreenState extends ConsumerState<CatalogoScreen> with SingleTick
 
   Widget _buildFilterSection() {
     final soloDisponibles = ref.watch(soloDisponiblesProvider);
+    final marcas = ref.watch(marcasProvider);
+    final selectedBrand = ref.watch(selectedBrandProvider);
+    final precioMin = ref.watch(precioMinProvider);
+    final precioMax = ref.watch(precioMaxProvider);
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -294,16 +518,96 @@ class _CatalogoScreenState extends ConsumerState<CatalogoScreen> with SingleTick
                   color: AppTheme.accentOrange,
                 ),
               ),
-              Switch(
-                value: soloDisponibles,
-                onChanged: (v) => ref.read(soloDisponiblesProvider.notifier).state = v,
-                activeColor: AppTheme.accentOrange,
+              Row(
+                children: [
+                  const Text('Solo stock disponible', style: TextStyle(color: AppTheme.textGray, fontSize: 10)),
+                  const SizedBox(width: 8),
+                  SizedBox(
+                    height: 30,
+                    child: Switch(
+                      value: soloDisponibles,
+                      onChanged: (v) => ref.read(soloDisponiblesProvider.notifier).state = v,
+                      activeColor: AppTheme.accentOrange,
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
-          Text(
-            soloDisponibles ? 'Solo productos disponibles' : 'Todos los productos',
-            style: const TextStyle(color: AppTheme.textGray, fontSize: 11),
+          const Divider(color: Colors.white10, height: 16),
+          Row(
+            children: [
+              const Icon(Icons.business_rounded, color: AppTheme.textGray, size: 14),
+              const SizedBox(width: 8),
+              const Text('Marca:', style: TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.bold)),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.03),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.white12),
+                  ),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<String>(
+                      value: selectedBrand,
+                      hint: const Text('Todas las marcas', style: TextStyle(color: AppTheme.textGray, fontSize: 11)),
+                      dropdownColor: AppTheme.surfaceDark,
+                      iconEnabledColor: AppTheme.accentOrange,
+                      isExpanded: true,
+                      style: const TextStyle(color: Colors.white, fontSize: 11),
+                      items: [
+                        const DropdownMenuItem<String>(
+                          value: null,
+                          child: Text('Todas las marcas'),
+                        ),
+                        ...marcas.map((brand) => DropdownMenuItem<String>(
+                          value: brand,
+                          child: Text(brand),
+                        )),
+                      ],
+                      onChanged: (val) => ref.read(selectedBrandProvider.notifier).state = val,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: const [
+                      Icon(Icons.monetization_on_rounded, color: AppTheme.textGray, size: 14),
+                      SizedBox(width: 8),
+                      Text('Rango de precio:', style: TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.bold)),
+                    ],
+                  ),
+                  Text(
+                    'S/ ${precioMin.toStringAsFixed(0)} - ${precioMax > 1000 ? 'Máx' : 'S/ ${precioMax.toStringAsFixed(0)}'}',
+                    style: const TextStyle(color: AppTheme.accentOrange, fontSize: 11, fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              RangeSlider(
+                values: RangeValues(precioMin, precioMax > 500.0 ? 500.0 : precioMax),
+                min: 0.0,
+                max: 500.0,
+                divisions: 50,
+                activeColor: AppTheme.accentOrange,
+                inactiveColor: Colors.white12,
+                onChanged: (RangeValues values) {
+                  ref.read(precioMinProvider.notifier).state = values.start;
+                  ref.read(precioMaxProvider.notifier).state = values.end == 500.0 ? 999999.0 : values.end;
+                },
+              ),
+            ],
           ),
         ],
       ),
@@ -426,17 +730,17 @@ class _CatalogoScreenState extends ConsumerState<CatalogoScreen> with SingleTick
     // URLs de Unsplash dinámicas según categoría para un diseño premium inmediato
     switch (producto.categoria) {
       case 'Herramientas Manuales':
-        return 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=500&auto=format&fit=crop';
+        return 'https://images.unsplash.com/photo-1534224039826-c7a0dea0e66a?w=500&auto=format&fit=crop';
       case 'Herramientas Eléctricas':
         return 'https://images.unsplash.com/photo-1504148455328-c376907d081c?w=500&auto=format&fit=crop';
       case 'Materiales de Construcción':
-        return 'https://images.unsplash.com/photo-1581092921461-eab62e97a780?w=500&auto=format&fit=crop';
+        return 'https://images.unsplash.com/photo-1541888946425-d81bb19240f5?w=500&auto=format&fit=crop';
       case 'Seguridad Industrial':
-        return 'https://images.unsplash.com/photo-1598501479109-22a4625cf6e7?w=500&auto=format&fit=crop';
+        return 'https://images.unsplash.com/photo-1508962914676-134849a727f0?w=500&auto=format&fit=crop';
       case 'Fijaciones y Tornillería':
-        return 'https://images.unsplash.com/photo-1530124560072-aae8d7db1eb6?w=500&auto=format&fit=crop';
+        return 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=500&auto=format&fit=crop';
       case 'Abrasivos y Consumibles':
-        return 'https://images.unsplash.com/photo-1572981779307-38b8cabb2407?w=500&auto=format&fit=crop';
+        return 'https://images.unsplash.com/photo-1504307651254-35680f356dfd?w=500&auto=format&fit=crop';
       default:
         return 'https://images.unsplash.com/photo-1534224039826-c7a0dea0e66a?w=500&auto=format&fit=crop';
     }
@@ -474,39 +778,16 @@ class _CatalogoScreenState extends ConsumerState<CatalogoScreen> with SingleTick
                 Expanded(
                   child: Stack(
                     children: [
-                      ClipRRect(
-                        borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-                        child: Image.network(
-                          imageUrl,
-                          headers: _imageHeaders,
-                          width: double.infinity,
-                          height: double.infinity,
-                          fit: BoxFit.cover,
-                          loadingBuilder: (context, child, loadingProgress) {
-                            if (loadingProgress == null) return child;
-                            return Container(
-                              color: Colors.white.withOpacity(0.03),
-                              child: const Center(
-                                child: SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    valueColor: AlwaysStoppedAnimation<Color>(AppTheme.accentOrange),
-                                  ),
-                                ),
-                              ),
-                            );
-                          },
-                          errorBuilder: (context, error, stackTrace) => Container(
-                            color: color.withOpacity(0.1),
-                            child: Center(
-                              child: Icon(
-                                _categoryIcons[producto.categoria] ?? Icons.category_rounded,
-                                color: color,
-                                size: 32,
-                              ),
-                            ),
+                      Hero(
+                        tag: 'hero-img-${producto.id}',
+                        child: ClipRRect(
+                          borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                          child: _buildProductImageWidget(
+                            imageUrl,
+                            producto.categoria,
+                            width: double.infinity,
+                            height: double.infinity,
+                            placeholderIconSize: 32,
                           ),
                         ),
                       ),
@@ -611,6 +892,7 @@ class _CatalogoScreenState extends ConsumerState<CatalogoScreen> with SingleTick
                           onPressed: !producto.disponible
                               ? null
                               : () {
+                                  HapticFeedback.lightImpact();
                                   ref.read(cartProvider.notifier).addItem(producto);
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     SnackBar(
@@ -671,7 +953,7 @@ class _CatalogoScreenState extends ConsumerState<CatalogoScreen> with SingleTick
           onTap: () => _showProductDetail(producto),
           borderRadius: BorderRadius.circular(16),
           child: Container(
-            height: 120, // Altura fija para evitar el IntrinsicHeight y desbordamientos en Web
+            height: 130, // Altura fija incrementada para evitar desbordamientos
             decoration: BoxDecoration(
               color: AppTheme.surfaceDark,
               borderRadius: BorderRadius.circular(16),
@@ -699,37 +981,14 @@ class _CatalogoScreenState extends ConsumerState<CatalogoScreen> with SingleTick
                     ),
                     child: Stack(
                       children: [
-                        Image.network(
-                          imageUrl,
-                          headers: _imageHeaders,
-                          width: 110,
-                          height: double.infinity,
-                          fit: BoxFit.cover,
-                          loadingBuilder: (context, child, loadingProgress) {
-                            if (loadingProgress == null) return child;
-                            return Container(
-                              color: Colors.white.withOpacity(0.03),
-                              child: const Center(
-                                child: SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    valueColor: AlwaysStoppedAnimation<Color>(AppTheme.accentOrange),
-                                  ),
-                                ),
-                              ),
-                            );
-                          },
-                          errorBuilder: (context, error, stackTrace) => Container(
-                            color: color.withOpacity(0.1),
-                            child: Center(
-                              child: Icon(
-                                _categoryIcons[producto.categoria] ?? Icons.category_rounded,
-                                color: color,
-                                size: 28,
-                              ),
-                            ),
+                        Hero(
+                          tag: 'hero-img-${producto.id}',
+                          child: _buildProductImageWidget(
+                            imageUrl,
+                            producto.categoria,
+                            width: 110,
+                            height: double.infinity,
+                            placeholderIconSize: 28,
                           ),
                         ),
                         if (!producto.disponible)
@@ -862,6 +1121,7 @@ class _CatalogoScreenState extends ConsumerState<CatalogoScreen> with SingleTick
                                     onPressed: !producto.disponible
                                         ? null
                                         : () {
+                                            HapticFeedback.lightImpact();
                                             ref.read(cartProvider.notifier).addItem(producto);
                                             ScaffoldMessenger.of(context).showSnackBar(
                                               SnackBar(
@@ -931,24 +1191,16 @@ class _CatalogoScreenState extends ConsumerState<CatalogoScreen> with SingleTick
                   const SizedBox(height: 24),
                   Row(
                     children: [
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(16),
-                        child: Image.network(
-                          imageUrl,
-                          headers: _imageHeaders,
-                          width: 64,
-                          height: 64,
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) => Container(
+                      Hero(
+                        tag: 'hero-img-${producto.id}',
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(16),
+                          child: _buildProductImageWidget(
+                            imageUrl,
+                            producto.categoria,
                             width: 64,
                             height: 64,
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                colors: [color.withOpacity(0.3), color.withOpacity(0.05)],
-                              ),
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                            child: Icon(icon, color: color, size: 32),
+                            placeholderIconSize: 32,
                           ),
                         ),
                       ),
@@ -1138,6 +1390,7 @@ class _CatalogoScreenState extends ConsumerState<CatalogoScreen> with SingleTick
                       width: double.infinity,
                       child: ElevatedButton.icon(
                         onPressed: () {
+                          HapticFeedback.lightImpact();
                           ref.read(cartProvider.notifier).addItem(producto);
                           Navigator.pop(context);
                           ScaffoldMessenger.of(context).showSnackBar(
@@ -1311,6 +1564,131 @@ class _CatalogoScreenState extends ConsumerState<CatalogoScreen> with SingleTick
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildShimmerGrid() {
+    return _isGridView
+        ? GridView.builder(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              crossAxisSpacing: 12,
+              mainAxisSpacing: 12,
+              childAspectRatio: 0.54,
+            ),
+            itemCount: 6,
+            itemBuilder: (context, index) => _buildShimmerCard(),
+          )
+        : ListView.builder(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: 4,
+            itemBuilder: (context, index) => _buildShimmerListCard(),
+          );
+  }
+
+  Widget _buildShimmerCard() {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppTheme.surfaceDark,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white.withOpacity(0.04)),
+      ),
+      child: Shimmer.fromColors(
+        baseColor: Colors.white.withOpacity(0.03),
+        highlightColor: Colors.white.withOpacity(0.08),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Container(
+                decoration: const BoxDecoration(
+                  color: Colors.white10,
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(height: 8, width: 60, color: Colors.white10),
+                  const SizedBox(height: 8),
+                  Container(height: 12, width: 100, color: Colors.white10),
+                  const SizedBox(height: 6),
+                  Container(height: 8, width: 40, color: Colors.white10),
+                  const SizedBox(height: 12),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Container(height: 14, width: 50, color: Colors.white10),
+                      Container(height: 24, width: 24, decoration: const BoxDecoration(color: Colors.white10, shape: BoxShape.circle)),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildShimmerListCard() {
+    return Container(
+      height: 130,
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: AppTheme.surfaceDark,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white.withOpacity(0.04)),
+      ),
+      child: Shimmer.fromColors(
+        baseColor: Colors.white.withOpacity(0.03),
+        highlightColor: Colors.white.withOpacity(0.08),
+        child: Row(
+          children: [
+            Container(
+              width: 110,
+              decoration: const BoxDecoration(
+                color: Colors.white10,
+                borderRadius: BorderRadius.horizontal(left: Radius.circular(16)),
+              ),
+            ),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(height: 8, width: 80, color: Colors.white10),
+                        const SizedBox(height: 8),
+                        Container(height: 14, width: 140, color: Colors.white10),
+                        const SizedBox(height: 6),
+                        Container(height: 8, width: 60, color: Colors.white10),
+                      ],
+                    ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Container(height: 16, width: 60, color: Colors.white10),
+                        Container(height: 28, width: 28, decoration: const BoxDecoration(color: Colors.white10, shape: BoxShape.circle)),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -1687,21 +2065,12 @@ class _AddEditProductDialogState extends ConsumerState<_AddEditProductDialog> {
                             const SizedBox(height: 8),
                             ClipRRect(
                               borderRadius: BorderRadius.circular(8),
-                              child: Image.network(
+                              child: _buildProductImageWidget(
                                 _imagenUrlCtrl.text,
+                                _categoria,
                                 height: 80,
                                 width: double.infinity,
-                                fit: BoxFit.cover,
-                                errorBuilder: (context, error, stackTrace) => Container(
-                                  height: 40,
-                                  color: Colors.white.withOpacity(0.02),
-                                  child: const Center(
-                                    child: Text(
-                                      'Vista previa no disponible',
-                                      style: TextStyle(color: AppTheme.textGray, fontSize: 10),
-                                    ),
-                                  ),
-                                ),
+                                placeholderIconSize: 24,
                               ),
                             ),
                           ],
@@ -1914,6 +2283,87 @@ class _AddEditProductDialogState extends ConsumerState<_AddEditProductDialog> {
           decoration: _inputDecoration('', hint),
         ),
       ],
+    );
+  }
+
+  Widget _buildProductImageWidget(String imageUrl, String categoria, {double? width, double? height, BoxFit fit = BoxFit.cover, double placeholderIconSize = 28}) {
+    final color = _CatalogoScreenState._categoryColors[categoria] ?? AppTheme.accentOrange;
+    
+    if (imageUrl.trim().isEmpty) {
+      return Container(
+        color: color.withOpacity(0.1),
+        child: Center(
+          child: Icon(
+            _CatalogoScreenState._categoryIcons[categoria] ?? Icons.category_rounded,
+            color: color,
+            size: placeholderIconSize,
+          ),
+        ),
+      );
+    }
+    
+    if (imageUrl.startsWith('data:image/')) {
+      try {
+        final base64String = imageUrl.split(',').last;
+        final bytes = base64Decode(base64String);
+        return Image.memory(
+          bytes,
+          width: width,
+          height: height,
+          fit: fit,
+          errorBuilder: (context, error, stackTrace) => Container(
+            color: color.withOpacity(0.1),
+            child: Center(
+              child: Icon(
+                _CatalogoScreenState._categoryIcons[categoria] ?? Icons.category_rounded,
+                color: color,
+                size: placeholderIconSize,
+              ),
+            ),
+          ),
+        );
+      } catch (e) {
+        debugPrint('Error decodificando base64: $e');
+      }
+    }
+    
+    final int? cWidth = (width != null && width.isFinite && width > 0) ? (width * 2.0).toInt() : 300;
+    final int? cHeight = (height != null && height.isFinite && height > 0) ? (height * 2.0).toInt() : 300;
+
+    return Image.network(
+      imageUrl,
+      headers: (imageUrl.contains('google') || imageUrl.contains('drive')) ? _CatalogoScreenState._imageHeaders : null,
+      width: width,
+      height: height,
+      fit: fit,
+      cacheWidth: cWidth,
+      cacheHeight: cHeight,
+      loadingBuilder: (context, child, loadingProgress) {
+        if (loadingProgress == null) return child;
+        return Container(
+          color: Colors.white.withOpacity(0.03),
+          child: const Center(
+            child: SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                valueColor: AlwaysStoppedAnimation<Color>(AppTheme.accentOrange),
+              ),
+            ),
+          ),
+        );
+      },
+      errorBuilder: (context, error, stackTrace) => Container(
+        color: color.withOpacity(0.1),
+        child: Center(
+          child: Icon(
+            _CatalogoScreenState._categoryIcons[categoria] ?? Icons.category_rounded,
+            color: color,
+            size: placeholderIconSize,
+          ),
+        ),
+      ),
     );
   }
 

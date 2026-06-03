@@ -9,6 +9,9 @@ import 'package:gestor_invetarios_pedidos_app/core/services/notification_service
 import 'package:gestor_invetarios_pedidos_app/data/seeders/seeder_initializer.dart';
 import 'package:gestor_invetarios_pedidos_app/data/services/google_drive_service.dart';
 
+import 'package:gestor_invetarios_pedidos_app/core/services/push_notification_service.dart';
+import 'package:gestor_invetarios_pedidos_app/data/services/firestore_service.dart';
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
@@ -25,9 +28,11 @@ void main() async {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
-    // Ejecutar seeders después de inicializar Firebase
-    await SeederInitializer.initCatalogo();
-    await SeederInitializer.seedTestUsers();
+    // Inicializar Notificaciones Push (FCM)
+    await PushNotificationService().init();
+    
+    // Ejecutar seeders en segundo plano sin bloquear el hilo principal de renderizado
+    _runSeedersIfNeeded();
   } catch (e) {
     debugPrint('Firebase initialization failed: $e');
   }
@@ -37,6 +42,26 @@ void main() async {
       child: AlyApp(),
     ),
   );
+}
+
+/// Helper para verificar y ejecutar el sembrado de datos en segundo plano sin bloquear la UI
+void _runSeedersIfNeeded() async {
+  try {
+    final service = FirestoreService();
+    final alreadySeeded = await service.isCatalogoSeeded();
+    if (!alreadySeeded) {
+      debugPrint('🌱 Catálogo no detectado o incompleto en Firestore. Iniciando sembrado en segundo plano...');
+      final seeded = await SeederInitializer.initCatalogo();
+      if (seeded) {
+        await SeederInitializer.seedTestUsers();
+        debugPrint('✅ Sembrado inicial de catálogo y usuarios completado con éxito.');
+      }
+    } else {
+      debugPrint('ℹ️ Catálogo ya sembrado en Firestore (45 productos). Saltando inicialización para mejorar rendimiento.');
+    }
+  } catch (e) {
+    debugPrint('⚠️ Error al verificar/sembrar base de datos en segundo plano: $e');
+  }
 }
 
 class AlyApp extends StatelessWidget {

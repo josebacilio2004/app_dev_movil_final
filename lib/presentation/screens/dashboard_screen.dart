@@ -7,6 +7,7 @@ import 'package:gestor_invetarios_pedidos_app/presentation/providers/investor_na
 import 'package:gestor_invetarios_pedidos_app/presentation/providers/buyer_nav_provider.dart';
 import 'package:gestor_invetarios_pedidos_app/presentation/screens/login_screen.dart';
 import 'package:gestor_invetarios_pedidos_app/presentation/screens/catalogo_screen.dart';
+import 'package:gestor_invetarios_pedidos_app/presentation/screens/mapa_ruta_screen.dart';
 import 'package:gestor_invetarios_pedidos_app/presentation/widgets/dashboards/admin_dashboard.dart';
 import 'package:gestor_invetarios_pedidos_app/presentation/widgets/dashboards/operator_dashboard.dart';
 import 'package:gestor_invetarios_pedidos_app/presentation/widgets/dashboards/buyer_dashboard.dart';
@@ -30,6 +31,12 @@ class DashboardScreen extends ConsumerWidget {
       backgroundColor: AppTheme.primaryDark,
       drawer: _buildDrawer(context, ref, profile),
       appBar: AppBar(
+        leading: Builder(
+          builder: (context) => IconButton(
+            icon: const Icon(Icons.menu_rounded, color: AppTheme.accentOrange),
+            onPressed: () => Scaffold.of(context).openDrawer(),
+          ),
+        ),
         title: Row(
           children: [
             ColorFiltered(
@@ -191,6 +198,7 @@ class DashboardScreen extends ConsumerWidget {
                   _drawerItem(ref, BuyerSection.wholesaleSales, 'VENTAS MAYORISTAS', Icons.shopping_cart_rounded, buyerSection == BuyerSection.wholesaleSales),
                   const Divider(color: Colors.white12, height: 24),
                   _catalogDrawerItem(context, role),
+                  _mapsDrawerItem(context, profile['id'] as String?),
                 ] else if (role == 'inversionista') ...[
                   _drawerItem(ref, InvestorSection.dashboard, 'DASHBOARD', Icons.dashboard_rounded, investorSection == InvestorSection.dashboard),
                   _drawerItem(ref, InvestorSection.orders, 'MIS INVERSIONES', Icons.monetization_on_rounded, investorSection == InvestorSection.orders),
@@ -199,8 +207,10 @@ class DashboardScreen extends ConsumerWidget {
                   _drawerItem(ref, InvestorSection.buyers, 'COMPRADORES', Icons.people_rounded, investorSection == InvestorSection.buyers),
                   const Divider(color: Colors.white12, height: 24),
                   _catalogDrawerItem(context, role),
+                  _mapsDrawerItem(context, profile['id'] as String?),
                 ] else if (role == 'admin') ...[
                   _catalogDrawerItem(context, role),
+                  _mapsDrawerItem(context, profile['id'] as String?),
                 ],
               ],
             ),
@@ -208,9 +218,15 @@ class DashboardScreen extends ConsumerWidget {
           Padding(
             padding: const EdgeInsets.all(24),
             child: ElevatedButton(
-              onPressed: () {
-                ref.read(authServiceProvider).signOut();
+              onPressed: () async {
+                await ref.read(authServiceProvider).signOut();
                 ref.read(authStateProvider.notifier).state = null;
+                if (context.mounted) {
+                  Navigator.of(context).pushAndRemoveUntil(
+                    MaterialPageRoute(builder: (_) => const LoginScreen()),
+                    (route) => false,
+                  );
+                }
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.redAccent.withOpacity(0.1),
@@ -282,6 +298,37 @@ class DashboardScreen extends ConsumerWidget {
             context,
             MaterialPageRoute(
               builder: (_) => CatalogoScreen(userRole: role),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _mapsDrawerItem(BuildContext context, String? usuarioId) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: ListTile(
+        leading: const Icon(Icons.map_rounded, color: AppTheme.textGray, size: 20),
+        title: Text(
+          'CÓMO LLEGAR (GPS)',
+          style: GoogleFonts.outfit(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: AppTheme.textGray,
+          ),
+        ),
+        trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 10, color: AppTheme.textGray),
+        onTap: () {
+          Navigator.pop(context);
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => MapaRutaScreen(usuarioId: usuarioId),
             ),
           );
         },

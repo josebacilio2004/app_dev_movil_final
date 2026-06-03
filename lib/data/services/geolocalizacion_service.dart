@@ -33,29 +33,32 @@ class GeolocalizacionService {
     String tipo = 'otro',
   }) async {
     try {
-      debugPrint('🌐 Maps API: Consultando ruta desde ($origenLat,$origenLng) hasta ($destinoLat,$destinoLng)...');
+      debugPrint('🌐 Mapbox Directions API: Consultando ruta desde ($origenLat,$origenLng) hasta ($destinoLat,$destinoLng)...');
 
+      // Mapbox expects coordinates in longitude,latitude format separated by semicolon
+      final String url = 'https://api.mapbox.com/directions/v5/mapbox/driving/$origenLng,$origenLat;$destinoLng,$destinoLat';
+      
       final response = await _dio.get(
-        '/directions/json',
+        url,
         queryParameters: {
-          'origin': '$origenLat,$origenLng',
-          'destination': '$destinoLat,$destinoLng',
-          'key': mapsApiKey,
-          'mode': 'driving',
+          'geometries': 'polyline',
+          'overview': 'full',
+          'access_token': 'pk.eyJ1Ijoiam9zZWJhYyIsImEiOiJjbW9pYTU0MW8wMGM4MnNvZ3NhOHo1NWM4In0.5Gw3E-h62DwI4ks5Y70cDw',
         },
       );
 
       if (response.statusCode == 200) {
         final data = response.data;
-        final status = data['status']?.toString();
-
-        if (status == 'OK') {
+        if (data['code'] == 'Ok' && data['routes'] != null && (data['routes'] as List).isNotEmpty) {
           final route = data['routes'][0];
           final leg = route['legs'][0];
 
-          final distancia = leg['distance']['text']?.toString() ?? 'N/A';
-          final duracion = leg['duration']['text']?.toString() ?? 'N/A';
-          final polyline = route['overview_polyline']['points']?.toString() ?? '';
+          final double distanceMeters = (leg['distance'] as num).toDouble();
+          final double durationSeconds = (leg['duration'] as num).toDouble();
+
+          final String distancia = '${(distanceMeters / 1000).toStringAsFixed(1)} km';
+          final String duracion = '${(durationSeconds / 60).toStringAsFixed(0)} min';
+          final String polyline = route['geometry']?.toString() ?? '';
 
           // Crear objeto de ruta
           final rutaMap = {
@@ -71,13 +74,18 @@ class GeolocalizacionService {
             'tipo': tipo,
           };
 
-          debugPrint('💾 Firestore: Guardando ruta en la colección "geolocalizacion_rutas"...');
-          final ref = await _db.collection('geolocalizacion_rutas').add(rutaMap);
-          
-          debugPrint('✅ Geolocalizacion: Ruta guardada con ID: ${ref.id}');
+          String docId = 'temp-${DateTime.now().millisecondsSinceEpoch}';
+          try {
+            debugPrint('💾 Firestore: Guardando ruta en la colección "geolocalizacion_rutas"...');
+            final ref = await _db.collection('geolocalizacion_rutas').add(rutaMap);
+            docId = ref.id;
+            debugPrint('✅ Geolocalizacion: Ruta guardada con ID: $docId');
+          } catch (fireErr) {
+            debugPrint('⚠️ Firestore: No se pudo guardar el registro de ruta (Permisos/Conexión): $fireErr');
+          }
 
           return RutaModel(
-            id: ref.id,
+            id: docId,
             origenLat: origenLat,
             origenLng: origenLng,
             destinoLat: destinoLat,
@@ -90,17 +98,14 @@ class GeolocalizacionService {
             tipo: tipo,
           );
         } else {
-          debugPrint('⚠️ Maps API retornó un estado de error: $status');
-          if (data['error_message'] != null) {
-            debugPrint('   Mensaje de error: ${data['error_message']}');
-          }
+          debugPrint('⚠️ Mapbox API no retornó un estado Ok: ${data['code']}');
         }
       } else {
-        debugPrint('⚠️ Maps API error en respuesta HTTP: ${response.statusCode}');
+        debugPrint('⚠️ Mapbox API error en respuesta HTTP: ${response.statusCode}');
       }
       return null;
     } on DioException catch (e) {
-      debugPrint('❌ Maps API error DioException: ${e.message}');
+      debugPrint('❌ Mapbox API error DioException: ${e.message}');
       return null;
     } catch (e) {
       debugPrint('❌ Geolocalizacion: Error general al obtener ruta: $e');

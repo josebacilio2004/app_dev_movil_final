@@ -55,11 +55,15 @@ final marcasProvider = Provider<List<String>>((ref) {
   );
 });
 
+// --- Filtro de marca ---
+final selectedBrandProvider = StateProvider<String?>((ref) => null);
+
 // --- RESULTADOS DE BÚSQUEDA INTELIGENTE ---
 final searchResultsProvider = Provider<List<CatalogoProducto>>((ref) {
   final catalogoAsync = ref.watch(catalogoStreamProvider);
   final query = ref.watch(searchQueryProvider);
   final selectedCategory = ref.watch(selectedCategoryProvider);
+  final selectedBrand = ref.watch(selectedBrandProvider);
   final soloDisponibles = ref.watch(soloDisponiblesProvider);
   final precioMin = ref.watch(precioMinProvider);
   final precioMax = ref.watch(precioMaxProvider);
@@ -71,6 +75,11 @@ final searchResultsProvider = Provider<List<CatalogoProducto>>((ref) {
       
       if (selectedCategory != null && selectedCategory.isNotEmpty) {
         filtered = filtered.where((p) => p.categoria == selectedCategory).toList();
+      }
+
+      // Paso 1.5: Filtrar por marca si está seleccionada
+      if (selectedBrand != null && selectedBrand.isNotEmpty) {
+        filtered = filtered.where((p) => p.marca == selectedBrand).toList();
       }
 
       // Paso 2: Filtrar por disponibilidad

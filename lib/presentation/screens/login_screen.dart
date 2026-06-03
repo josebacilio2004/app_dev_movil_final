@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gestor_invetarios_pedidos_app/core/theme/app_theme.dart';
 import 'package:gestor_invetarios_pedidos_app/presentation/providers/auth_provider.dart';
 import 'package:gestor_invetarios_pedidos_app/presentation/screens/dashboard_screen.dart';
+import 'package:gestor_invetarios_pedidos_app/presentation/screens/signup_screen.dart';
+import 'package:gestor_invetarios_pedidos_app/presentation/screens/password_recovery_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:local_auth/local_auth.dart';
 
@@ -416,6 +418,44 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   icon: const Icon(Icons.fingerprint_rounded, color: AppTheme.accentOrange, size: 28),
                   onPressed: _isLoading ? null : _onBiometricPressed,
                   tooltip: 'Inicio rápido con huella dactilar',
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const SignUpScreen()),
+                  );
+                },
+                child: const Text(
+                  'REGISTRARSE',
+                  style: TextStyle(
+                    color: AppTheme.accentOrange,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 1,
+                  ),
+                ),
+              ),
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const PasswordRecoveryScreen()),
+                  );
+                },
+                child: const Text(
+                  '¿OLVIDASTE TU CLAVE?',
+                  style: TextStyle(
+                    color: AppTheme.textGray,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 1,
+                  ),
                 ),
               ),
             ],

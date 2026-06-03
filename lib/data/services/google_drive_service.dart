@@ -66,19 +66,34 @@ class GoogleDriveService {
       };
 
       debugPrint('🌐 Google Drive: Enviando imagen a Apps Script... URL: $url');
-      final response = await _dio.post(
+      Response response = await _dio.post(
         url,
         data: jsonEncode(payload),
         options: Options(
           headers: {
-            'Content-Type': 'application/json',
+            'Content-Type': 'text/plain',
           },
-          followRedirects: true,
+          followRedirects: kIsWeb,
           validateStatus: (status) => status != null && status < 500,
         ),
       );
 
-      if (response.statusCode == 200 || response.statusCode == 302) {
+      // Manejar el redireccionamiento manual para conservar el método POST y cuerpo
+      if (response.statusCode == 301 || response.statusCode == 302 || response.statusCode == 307 || response.statusCode == 308) {
+        final redirectUrl = response.headers.value('location');
+        if (redirectUrl != null) {
+          debugPrint('🌐 Google Drive: Redirigiendo GET a: $redirectUrl');
+          response = await _dio.get(
+            redirectUrl,
+            options: Options(
+              followRedirects: true,
+              validateStatus: (status) => status != null && status < 500,
+            ),
+          );
+        }
+      }
+
+      if (response.statusCode == 200) {
         // En Apps Script, a veces ocurren redireccionamientos que Dio maneja, o retorna el JSON directo
         final responseData = response.data;
         Map<String, dynamic> jsonResponse;

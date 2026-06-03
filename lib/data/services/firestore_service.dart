@@ -88,21 +88,66 @@ class FirestoreService {
             .toList());
   }
 
+  Future<void> registrarMovimiento({
+    required String productoId,
+    required String nombreProducto,
+    required String tipoOperacion,
+    String? detalles,
+  }) async {
+    try {
+      await _db.collection('inventario_movimientos').add({
+        'producto_id': productoId,
+        'nombre_producto': nombreProducto,
+        'tipo_operacion': tipoOperacion,
+        'detalles': detalles ?? '',
+        'fecha': FieldValue.serverTimestamp(),
+        'usuario': 'operador_aly@comercializadoraaly.com',
+      });
+      debugPrint('📝 Auditoría: Registrado movimiento de inventario ($tipoOperacion) para $nombreProducto');
+    } catch (e) {
+      debugPrint('⚠️ Auditoría: Error al registrar movimiento: $e');
+    }
+  }
+
   Future<Map<String, dynamic>> createCatalogoProducto(Map<String, dynamic> data) async {
     final ref = await _db.collection('catalogo_productos').add({
       ...data,
       'fecha_creacion': FieldValue.serverTimestamp(),
     });
+    await registrarMovimiento(
+      productoId: ref.id,
+      nombreProducto: data['nombre'] ?? 'Nuevo Producto',
+      tipoOperacion: 'CREAR',
+      detalles: 'Creado con precio unitario S/ ${data['precio_unitario']}',
+    );
     return {'id': ref.id, ...data};
   }
 
   Future<Map<String, dynamic>> updateCatalogoProducto(String id, Map<String, dynamic> data) async {
     await _db.collection('catalogo_productos').doc(id).update(data);
+    await registrarMovimiento(
+      productoId: id,
+      nombreProducto: data['nombre'] ?? 'Producto Modificado',
+      tipoOperacion: 'MODIFICAR',
+      detalles: 'Campos actualizados: ${data.keys.join(", ")}',
+    );
     return {'id': id, ...data};
   }
 
   Future<void> deleteCatalogoProducto(String id) async {
-    await _db.collection('catalogo_productos').doc(id).delete();
+    try {
+      final doc = await _db.collection('catalogo_productos').doc(id).get();
+      final nombre = doc.data()?['nombre'] ?? 'Producto Desconocido';
+      await _db.collection('catalogo_productos').doc(id).delete();
+      await registrarMovimiento(
+        productoId: id,
+        nombreProducto: nombre,
+        tipoOperacion: 'ELIMINAR',
+        detalles: 'Producto eliminado del catálogo.',
+      );
+    } catch (e) {
+      await _db.collection('catalogo_productos').doc(id).delete();
+    }
   }
 
   // ============================================================
@@ -311,13 +356,17 @@ class FirestoreService {
   Future<int> seedCatalogoProductos(List<Map<String, dynamic>> productos) async {
     debugPrint('🗑️ Seeder: Limpiando colección antigua "productos" y "catalogo_productos"...');
     
-    // Limpiar colección antigua de productos
-    final productosSnapshot = await _db.collection('productos').get();
-    final batchProd = _db.batch();
-    for (final doc in productosSnapshot.docs) {
-      batchProd.delete(doc.reference);
+    // Limpiar colección antigua de productos (si hay permisos)
+    try {
+      final productosSnapshot = await _db.collection('productos').get();
+      final batchProd = _db.batch();
+      for (final doc in productosSnapshot.docs) {
+        batchProd.delete(doc.reference);
+      }
+      await batchProd.commit();
+    } catch (e) {
+      debugPrint('ℹ️ Seeder: No se pudo limpiar la colección "productos" (seguramente por falta de permisos/autenticación). Continuando...');
     }
-    await batchProd.commit();
 
     // Limpiar catalogo_productos
     final catalogoSnapshot = await _db.collection('catalogo_productos').get();
@@ -349,5 +398,17 @@ class FirestoreService {
   Future<bool> isCatalogoSeeded() async {
     final snapshot = await _db.collection('catalogo_productos').get();
     return snapshot.docs.length == 45;
+  }
+
+  /// Limpia todos los productos del catálogo en Firestore
+  Future<void> clearCatalogoProductos() async {
+    debugPrint('🗑️ Firestore: Limpiando colección catalogo_productos...');
+    final snapshot = await _db.collection('catalogo_productos').get();
+    final batch = _db.batch();
+    for (final doc in snapshot.docs) {
+      batch.delete(doc.reference);
+    }
+    await batch.commit();
+    debugPrint('🗑️ Firestore: Colección catalogo_productos vaciada con éxito.');
   }
 }
