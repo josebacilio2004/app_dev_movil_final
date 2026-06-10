@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
@@ -41,7 +42,7 @@ class GeolocalizacionService {
       final response = await _dio.get(
         url,
         queryParameters: {
-          'geometries': 'polyline',
+          'geometries': 'geojson',
           'overview': 'full',
           'access_token': 'pk.eyJ1Ijoiam9zZWJhYyIsImEiOiJjbW9pYTU0MW8wMGM4MnNvZ3NhOHo1NWM4In0.5Gw3E-h62DwI4ks5Y70cDw',
         },
@@ -58,7 +59,7 @@ class GeolocalizacionService {
 
           final String distancia = '${(distanceMeters / 1000).toStringAsFixed(1)} km';
           final String duracion = '${(durationSeconds / 60).toStringAsFixed(0)} min';
-          final String polyline = route['geometry']?.toString() ?? '';
+          final String polyline = jsonEncode(route['geometry']?['coordinates'] ?? []);
 
           // Crear objeto de ruta
           final rutaMap = {

@@ -8,6 +8,8 @@ import 'package:printing/printing.dart';
 import 'package:gestor_invetarios_pedidos_app/core/theme/app_theme.dart';
 import 'package:gestor_invetarios_pedidos_app/presentation/providers/auth_provider.dart';
 import 'package:gestor_invetarios_pedidos_app/presentation/providers/catalogo_provider.dart';
+import 'package:gestor_invetarios_pedidos_app/data/models/catalogo_producto.dart';
+import 'package:gestor_invetarios_pedidos_app/presentation/widgets/connection_status_indicator.dart';
 import 'package:gestor_invetarios_pedidos_app/presentation/widgets/common/app_drawer.dart';
 import 'package:gestor_invetarios_pedidos_app/presentation/widgets/common/glass_container.dart';
 import 'package:intl/intl.dart';
@@ -22,6 +24,23 @@ class BoletasScreen extends ConsumerStatefulWidget {
 class _BoletasScreenState extends ConsumerState<BoletasScreen> {
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
+  
+  bool _showFilters = false;
+  DateTime? _startDate;
+  DateTime? _endDate;
+  double? _minAmount;
+  double? _maxAmount;
+  String _selectedCategory = 'Todas';
+
+  final List<String> _categories = [
+    'Todas',
+    'Herramientas Manuales',
+    'Herramientas Eléctricas',
+    'Materiales de Construcción',
+    'EPP y Seguridad',
+    'Pinturas y Acabados',
+    'Electricidad y Plomería'
+  ];
 
   @override
   Widget build(BuildContext context) {
@@ -49,6 +68,10 @@ class _BoletasScreenState extends ConsumerState<BoletasScreen> {
             color: Colors.white,
           ),
         ),
+        actions: [
+          const ConnectionStatusIndicator(),
+          const SizedBox(width: 16),
+        ],
         backgroundColor: AppTheme.surfaceDark,
         elevation: 0,
         shape: Border(bottom: BorderSide(color: Colors.white.withOpacity(0.05), width: 1)),
@@ -90,10 +113,72 @@ class _BoletasScreenState extends ConsumerState<BoletasScreen> {
             }).toList();
           }
 
+          // Aplicar filtros avanzados
+          if (_startDate != null) {
+            userOrders = userOrders.where((o) {
+              final dateRaw = o['fecha_pedido'];
+              if (dateRaw == null) return false;
+              final date = DateTime.tryParse(dateRaw.toString());
+              if (date == null) return false;
+              final orderMidnight = DateTime(date.year, date.month, date.day);
+              final startMidnight = DateTime(_startDate!.year, _startDate!.month, _startDate!.day);
+              return orderMidnight.isAtSameMomentAs(startMidnight) || orderMidnight.isAfter(startMidnight);
+            }).toList();
+          }
+
+          if (_endDate != null) {
+            userOrders = userOrders.where((o) {
+              final dateRaw = o['fecha_pedido'];
+              if (dateRaw == null) return false;
+              final date = DateTime.tryParse(dateRaw.toString());
+              if (date == null) return false;
+              final orderMidnight = DateTime(date.year, date.month, date.day);
+              final endMidnight = DateTime(_endDate!.year, _endDate!.month, _endDate!.day);
+              return orderMidnight.isAtSameMomentAs(endMidnight) || orderMidnight.isBefore(endMidnight);
+            }).toList();
+          }
+
+          if (_minAmount != null) {
+            userOrders = userOrders.where((o) {
+              final total = (o['capital_invertido'] as num?)?.toDouble() ?? 0.0;
+              return total >= _minAmount!;
+            }).toList();
+          }
+
+          if (_maxAmount != null) {
+            userOrders = userOrders.where((o) {
+              final total = (o['capital_invertido'] as num?)?.toDouble() ?? 0.0;
+              return total <= _maxAmount!;
+            }).toList();
+          }
+
+          if (_selectedCategory != 'Todas') {
+            final catalogAsync = ref.watch(catalogoStreamProvider);
+            final allCatalogProducts = catalogAsync.value ?? [];
+            userOrders = userOrders.where((o) {
+              final items = o['items'] as List<dynamic>? ?? [];
+              return items.any((item) {
+                final itemCat = item['categoria']?.toString() ?? '';
+                if (itemCat.isNotEmpty) {
+                  return itemCat.toLowerCase() == _selectedCategory.toLowerCase();
+                }
+                final prodId = item['producto_id']?.toString() ?? '';
+                final matchingProd = allCatalogProducts.firstWhere(
+                  (p) => p.id == prodId,
+                  orElse: () => CatalogoProducto(id: '', nombre: '', descripcion: '', categoria: '', subcategoria: '', precioUnitario: 0, precioMayorista: 0, disponible: false, unidad: '', marca: '')
+                );
+                return matchingProd.categoria.toLowerCase() == _selectedCategory.toLowerCase();
+              });
+            }).toList();
+          }
+
           return Column(
             children: [
               // Barra de Búsqueda
               _buildSearchBar(user.rol.toLowerCase()),
+              
+              // Panel de Filtros Avanzados
+              _buildAdvancedFiltersPanel(),
               
               Expanded(
                 child: userOrders.isEmpty
@@ -119,47 +204,301 @@ class _BoletasScreenState extends ConsumerState<BoletasScreen> {
     return Container(
       padding: const EdgeInsets.fromLTRB(24, 16, 24, 8),
       color: AppTheme.surfaceDark.withOpacity(0.3),
-      child: TextField(
-        controller: _searchController,
-        onChanged: (value) {
-          setState(() {
-            _searchQuery = value;
-          });
-        },
-        style: const TextStyle(color: Colors.white, fontSize: 13),
-        decoration: InputDecoration(
-          hintText: role == 'comprador' 
-              ? 'Buscar por ID de Boleta...' 
-              : 'Buscar por ID o Comprador...',
-          prefixIcon: const Icon(Icons.search_rounded, color: AppTheme.textGray),
-          suffixIcon: _searchQuery.isNotEmpty
-              ? IconButton(
-                  icon: const Icon(Icons.clear_rounded, color: AppTheme.textGray),
+      child: Row(
+        children: [
+          Expanded(
+            child: TextField(
+              controller: _searchController,
+              onChanged: (value) {
+                setState(() {
+                  _searchQuery = value;
+                });
+              },
+              style: const TextStyle(color: Colors.white, fontSize: 13),
+              decoration: InputDecoration(
+                hintText: role == 'comprador' 
+                    ? 'Buscar por ID de Boleta...' 
+                    : 'Buscar por ID o Comprador...',
+                prefixIcon: const Icon(Icons.search_rounded, color: AppTheme.textGray),
+                suffixIcon: _searchQuery.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear_rounded, color: AppTheme.textGray),
+                        onPressed: () {
+                          _searchController.clear();
+                          setState(() {
+                            _searchQuery = '';
+                          });
+                        },
+                      )
+                    : null,
+                filled: true,
+                fillColor: AppTheme.surfaceDark,
+                contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 16),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: Colors.white.withOpacity(0.05)),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: Colors.white.withOpacity(0.05)),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: AppTheme.accentOrange, width: 1.5),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          GestureDetector(
+            onTap: () {
+              setState(() {
+                _showFilters = !_showFilters;
+              });
+            },
+            child: Container(
+              height: 48,
+              width: 48,
+              decoration: BoxDecoration(
+                color: _showFilters ? AppTheme.accentOrange.withOpacity(0.2) : AppTheme.surfaceDark,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: _showFilters ? AppTheme.accentOrange : Colors.white.withOpacity(0.05),
+                  width: 1,
+                ),
+              ),
+              child: Icon(
+                Icons.filter_alt_rounded,
+                color: _showFilters ? AppTheme.accentOrange : AppTheme.textGray,
+                size: 20,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAdvancedFiltersPanel() {
+    return AnimatedCrossFade(
+      firstChild: const SizedBox.shrink(),
+      secondChild: Container(
+        margin: const EdgeInsets.fromLTRB(24, 0, 24, 16),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppTheme.surfaceDark.withOpacity(0.5),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.white.withOpacity(0.05)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'FILTRAR POR RANGO DE FECHAS',
+              style: GoogleFonts.outfit(
+                color: AppTheme.textGray,
+                fontSize: 9,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 1.2,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () async {
+                      final date = await showDatePicker(
+                        context: context,
+                        initialDate: _startDate ?? DateTime.now(),
+                        firstDate: DateTime(2025),
+                        lastDate: DateTime(2030),
+                        locale: const Locale('es', 'PE'),
+                      );
+                      if (date != null) {
+                        setState(() {
+                          _startDate = date;
+                        });
+                      }
+                    },
+                    icon: const Icon(Icons.date_range_rounded, size: 14),
+                    label: Text(
+                      _startDate == null 
+                          ? 'Fecha Inicio' 
+                          : DateFormat('dd/MM/yyyy').format(_startDate!),
+                      style: const TextStyle(fontSize: 11),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.white,
+                      side: BorderSide(color: Colors.white.withOpacity(0.1)),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () async {
+                      final date = await showDatePicker(
+                        context: context,
+                        initialDate: _endDate ?? DateTime.now(),
+                        firstDate: DateTime(2025),
+                        lastDate: DateTime(2030),
+                        locale: const Locale('es', 'PE'),
+                      );
+                      if (date != null) {
+                        setState(() {
+                          _endDate = date;
+                        });
+                      }
+                    },
+                    icon: const Icon(Icons.date_range_rounded, size: 14),
+                    label: Text(
+                      _endDate == null 
+                          ? 'Fecha Fin' 
+                          : DateFormat('dd/MM/yyyy').format(_endDate!),
+                      style: const TextStyle(fontSize: 11),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.white,
+                      side: BorderSide(color: Colors.white.withOpacity(0.1)),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'FILTRAR POR RANGO DE MONTOS (S/)',
+              style: GoogleFonts.outfit(
+                color: AppTheme.textGray,
+                fontSize: 9,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 1.2,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    keyboardType: TextInputType.number,
+                    style: const TextStyle(color: Colors.white, fontSize: 12),
+                    decoration: InputDecoration(
+                      hintText: 'Monto Mínimo',
+                      filled: true,
+                      fillColor: AppTheme.surfaceDark,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: BorderSide.none,
+                      ),
+                    ),
+                    onChanged: (val) {
+                      setState(() {
+                        _minAmount = double.tryParse(val);
+                      });
+                    },
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: TextField(
+                    keyboardType: TextInputType.number,
+                    style: const TextStyle(color: Colors.white, fontSize: 12),
+                    decoration: InputDecoration(
+                      hintText: 'Monto Máximo',
+                      filled: true,
+                      fillColor: AppTheme.surfaceDark,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: BorderSide.none,
+                      ),
+                    ),
+                    onChanged: (val) {
+                      setState(() {
+                        _maxAmount = double.tryParse(val);
+                      });
+                    },
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'FILTRAR POR CATEGORÍA DE PRODUCTO',
+              style: GoogleFonts.outfit(
+                color: AppTheme.textGray,
+                fontSize: 9,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 1.2,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              decoration: BoxDecoration(
+                color: AppTheme.surfaceDark,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<String>(
+                  value: _selectedCategory,
+                  dropdownColor: AppTheme.surfaceDark,
+                  isExpanded: true,
+                  icon: const Icon(Icons.arrow_drop_down, color: AppTheme.accentOrange),
+                  style: const TextStyle(color: Colors.white, fontSize: 12),
+                  onChanged: (String? newValue) {
+                    if (newValue != null) {
+                      setState(() {
+                        _selectedCategory = newValue;
+                      });
+                    }
+                  },
+                  items: _categories.map<DropdownMenuItem<String>>((String value) {
+                    return DropdownMenuItem<String>(
+                      value: value,
+                      child: Text(value),
+                    );
+                  }).toList(),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                TextButton.icon(
                   onPressed: () {
-                    _searchController.clear();
                     setState(() {
-                      _searchQuery = '';
+                      _startDate = null;
+                      _endDate = null;
+                      _minAmount = null;
+                      _maxAmount = null;
+                      _selectedCategory = 'Todas';
                     });
                   },
-                )
-              : null,
-          filled: true,
-          fillColor: AppTheme.surfaceDark,
-          contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 16),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(color: Colors.white.withOpacity(0.05)),
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(color: Colors.white.withOpacity(0.05)),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: AppTheme.accentOrange, width: 1.5),
-          ),
+                  icon: const Icon(Icons.refresh_rounded, size: 16, color: AppTheme.accentOrange),
+                  label: Text(
+                    'RESTABLECER FILTROS',
+                    style: GoogleFonts.outfit(
+                      color: AppTheme.accentOrange,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
       ),
+      crossFadeState: _showFilters ? CrossFadeState.showSecond : CrossFadeState.showFirst,
+      duration: const Duration(milliseconds: 300),
     );
   }
 
@@ -203,7 +542,7 @@ class _BoletasScreenState extends ConsumerState<BoletasScreen> {
   }
 
   Widget _buildInvoiceCard(Map<String, dynamic> o) {
-    final docId = o['id'] ?? 'REC-XXXX';
+    final docId = (o['id'] ?? 'REC-XXXX').toString();
     final cleanId = docId.length > 8 ? docId.substring(0, 8).toUpperCase() : docId.toUpperCase();
     final fechaRaw = o['fecha_pedido'] ?? DateTime.now().toIso8601String();
     

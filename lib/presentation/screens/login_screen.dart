@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gestor_invetarios_pedidos_app/core/theme/app_theme.dart';
@@ -33,7 +34,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   @override
   void initState() {
     super.initState();
-    _checkBiometrics();
+    if (!kIsWeb) {
+      _checkBiometrics();
+    }
   }
 
   Future<void> _checkBiometrics() async {
@@ -91,6 +94,29 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   Future<void> _onBiometricPressed() async {
+    if (kIsWeb) {
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            backgroundColor: AppTheme.surfaceDark,
+            title: const Text('Huella Dactilar', style: TextStyle(color: Colors.white)),
+            content: const Text(
+              'La autenticación biométrica no está disponible en entorno Web Chrome. Por favor, inicie sesión manualmente.',
+              style: TextStyle(color: AppTheme.textGray),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Entendido', style: TextStyle(color: AppTheme.accentOrange)),
+              ),
+            ],
+          ),
+        );
+      }
+      return;
+    }
+
     try {
       final isAvailable = await _localAuth.canCheckBiometrics;
       final isDeviceSupported = await _localAuth.isDeviceSupported();
@@ -171,7 +197,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         await prefs.setString('bio_identifier', identifier);
         await prefs.setString('bio_password', password);
         await prefs.setString('bio_role', user.rol);
-        await prefs.setBool('bio_enabled', true);
+        // No forzamos bio_enabled en true de forma automática; el usuario decide en Configuración.
       } catch (e) {
         debugPrint('Error guardando preferencias biométricas: $e');
       }

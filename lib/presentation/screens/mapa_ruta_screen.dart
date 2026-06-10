@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
@@ -263,6 +264,15 @@ class _MapaRutaScreenState extends State<MapaRutaScreen> {
   }
 
   List<LatLng> _decodePolyline(String encoded) {
+    if (encoded.startsWith('[')) {
+      try {
+        final List<dynamic> decoded = json.decode(encoded);
+        return decoded.map((p) => LatLng((p[1] as num).toDouble(), (p[0] as num).toDouble())).toList();
+      } catch (e) {
+        debugPrint('Error decodificando GeoJSON coordinates: $e');
+      }
+    }
+
     List<LatLng> points = [];
     int index = 0, len = encoded.length;
     int lat = 0, lng = 0;

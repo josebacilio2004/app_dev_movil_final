@@ -142,6 +142,7 @@ class _PaymentGatewayScreenState extends ConsumerState<PaymentGatewayScreen> wit
           'cantidad': item.cantidad,
           'nombre': item.producto.nombre,
           'precio_unitario': item.producto.precioUnitario,
+          'categoria': item.producto.categoria,
         }).toList(),
         'producto_nombre': cartItems.length == 1 
             ? cartItems.first.producto.nombre 

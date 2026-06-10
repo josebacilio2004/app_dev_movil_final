@@ -10,6 +10,8 @@ import 'package:gestor_invetarios_pedidos_app/presentation/screens/mapa_ruta_scr
 import 'package:gestor_invetarios_pedidos_app/presentation/screens/boletas_screen.dart';
 import 'package:gestor_invetarios_pedidos_app/presentation/screens/order_list_screen.dart';
 import 'package:gestor_invetarios_pedidos_app/presentation/screens/dashboard_screen.dart';
+import 'package:gestor_invetarios_pedidos_app/presentation/screens/notification_inbox_screen.dart';
+import 'package:gestor_invetarios_pedidos_app/presentation/widgets/connection_status_indicator.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -66,6 +68,20 @@ class HomeScreen extends ConsumerWidget {
         elevation: 0,
         shape: Border(bottom: BorderSide(color: Colors.white.withOpacity(0.05), width: 1)),
         centerTitle: false,
+        actions: [
+          const ConnectionStatusIndicator(),
+          const SizedBox(width: 8),
+          IconButton(
+            icon: const Icon(Icons.notifications_rounded, color: AppTheme.accentOrange, size: 24),
+            onPressed: () {
+              Navigator.of(context).pushReplacement(
+                MaterialPageRoute(builder: (_) => const NotificationInboxScreen()),
+              );
+            },
+            tooltip: 'Ver Notificaciones',
+          ),
+          const SizedBox(width: 8),
+        ],
       ),
       body: SingleChildScrollView(
         physics: const BouncingScrollPhysics(),

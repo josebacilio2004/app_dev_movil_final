@@ -10,6 +10,8 @@ import 'package:gestor_invetarios_pedidos_app/presentation/screens/dashboard_scr
 import 'package:gestor_invetarios_pedidos_app/presentation/screens/boletas_screen.dart';
 import 'package:gestor_invetarios_pedidos_app/presentation/screens/order_list_screen.dart';
 import 'package:gestor_invetarios_pedidos_app/presentation/screens/login_screen.dart';
+import 'package:gestor_invetarios_pedidos_app/presentation/screens/notification_inbox_screen.dart';
+import 'package:gestor_invetarios_pedidos_app/presentation/screens/settings_screen.dart';
 
 class AppDrawer extends ConsumerWidget {
   final String currentRoute;
@@ -117,10 +119,24 @@ class AppDrawer extends ConsumerWidget {
                 ),
                 _drawerItem(
                   context,
+                  label: 'BANDEJA DE NOTIFICACIONES',
+                  icon: Icons.notifications_rounded,
+                  isSelected: currentRoute == 'notifications',
+                  onTap: () => _navigate(context, const NotificationInboxScreen()),
+                ),
+                _drawerItem(
+                  context,
                   label: 'MIS PEDIDOS',
                   icon: Icons.assignment_rounded,
                   isSelected: currentRoute == 'orders',
                   onTap: () => _navigate(context, const OrderListScreen()),
+                ),
+                _drawerItem(
+                  context,
+                  label: 'CONFIGURACIÓN',
+                  icon: Icons.settings_rounded,
+                  isSelected: currentRoute == 'settings',
+                  onTap: () => _navigate(context, const SettingsScreen()),
                 ),
                 
                 // Mostrar Dashboard según rol (admin, operador, comprador, inversionista)

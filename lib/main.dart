@@ -11,6 +11,7 @@ import 'package:gestor_invetarios_pedidos_app/core/services/notification_service
 import 'package:gestor_invetarios_pedidos_app/data/seeders/seeder_initializer.dart';
 import 'package:gestor_invetarios_pedidos_app/data/services/google_drive_service.dart';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:gestor_invetarios_pedidos_app/core/services/push_notification_service.dart';
 import 'package:gestor_invetarios_pedidos_app/data/services/firestore_service.dart';
 
@@ -30,6 +31,13 @@ void main() async {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
+
+    // Configurar persistencia caché offline para Firestore
+    FirebaseFirestore.instance.settings = const Settings(
+      persistenceEnabled: true,
+      cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
+    );
+    
     // Inicializar Notificaciones Push (FCM)
     await PushNotificationService().init();
     

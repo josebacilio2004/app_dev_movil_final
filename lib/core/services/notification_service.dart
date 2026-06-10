@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 import 'dart:io';
@@ -55,5 +57,31 @@ class NotificationService {
     );
 
     await _notifications.show(id, title, body, details);
+
+    // Guardar en el historial local
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final historyStr = prefs.getString('notifications_history');
+      List<dynamic> history = [];
+      if (historyStr != null) {
+        try {
+          history = jsonDecode(historyStr);
+        } catch (_) {}
+      }
+      history.insert(0, {
+        'id': '${DateTime.now().millisecondsSinceEpoch}_$id',
+        'title': title,
+        'body': body,
+        'timestamp': DateTime.now().toIso8601String(),
+        'read': false,
+      });
+      // Mantener un límite de 100 notificaciones para no saturar memoria
+      if (history.length > 100) {
+        history = history.sublist(0, 100);
+      }
+      await prefs.setString('notifications_history', jsonEncode(history));
+    } catch (e) {
+      // Ignorar fallos de persistencia
+    }
   }
 }
