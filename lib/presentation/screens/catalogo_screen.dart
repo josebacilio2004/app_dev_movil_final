@@ -4,6 +4,7 @@ import 'package:gestor_invetarios_pedidos_app/core/theme/app_theme.dart';
 import 'package:gestor_invetarios_pedidos_app/data/models/catalogo_producto.dart';
 import 'package:gestor_invetarios_pedidos_app/presentation/providers/catalogo_provider.dart';
 import 'package:gestor_invetarios_pedidos_app/presentation/providers/cart_provider.dart';
+import 'package:gestor_invetarios_pedidos_app/presentation/widgets/common/app_drawer.dart';
 import 'package:gestor_invetarios_pedidos_app/presentation/screens/cart_screen.dart';
 import 'package:gestor_invetarios_pedidos_app/data/services/google_drive_service.dart';
 import 'package:image_picker/image_picker.dart';
@@ -288,6 +289,7 @@ class _CatalogoScreenState extends ConsumerState<CatalogoScreen> with SingleTick
 
     return Scaffold(
       backgroundColor: AppTheme.primaryDark,
+      drawer: const AppDrawer(currentRoute: 'catalog'),
       floatingActionButton: widget.userRole == 'admin'
           ? FloatingActionButton(
               backgroundColor: AppTheme.accentOrange,
@@ -299,9 +301,11 @@ class _CatalogoScreenState extends ConsumerState<CatalogoScreen> with SingleTick
       appBar: AppBar(
         backgroundColor: AppTheme.surfaceDark,
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_rounded, size: 18),
-          onPressed: () => Navigator.of(context).pop(),
+        leading: Builder(
+          builder: (context) => IconButton(
+            icon: const Icon(Icons.menu_rounded, color: AppTheme.accentOrange, size: 28),
+            onPressed: () => Scaffold.of(context).openDrawer(),
+          ),
         ),
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,

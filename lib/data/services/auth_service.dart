@@ -12,30 +12,42 @@ class AuthService {
 
   Usuario? get currentUser => _currentUser;
 
-  /// Inicia sesión con Firebase Auth
-  /// Si el identificador es un nombre de usuario (sin @), busca en Firestore su email
-  Future<Usuario?> signIn(String identifier, String password, String apiRole, {String? originalRole}) async {
+  /// Inicia sesión con Firebase Auth resolviendo el rol dinámicamente desde Firestore
+  Future<Usuario?> signIn(String identifier, String password) async {
     try {
-      debugPrint('🔑 Iniciando autenticación en Firebase para: $identifier (Rol: $originalRole)');
+      debugPrint('🔑 Iniciando autenticación en Firebase para: $identifier');
       String email = identifier.trim();
+      String resolvedRole = 'comprador';
+      String resolvedName = 'Usuario';
+      String resolvedUsername = identifier;
 
-      // 1. Si no es un email, buscamos el email asociado al nombre de usuario en Firestore
-      if (!email.contains('@')) {
-        final querySnapshot = await _db
+      // 1. Buscamos el usuario en Firestore para obtener su email y rol
+      QuerySnapshot<Map<String, dynamic>> querySnapshot;
+      if (email.contains('@')) {
+        querySnapshot = await _db
             .collection('users')
-            .where('usuario', isEqualTo: identifier.trim())
+            .where('email', isEqualTo: email)
             .limit(1)
             .get();
-
-        if (querySnapshot.docs.isEmpty) {
-          debugPrint('❌ Nombre de usuario no encontrado en Firestore: $identifier');
-          return null;
-        }
-
-        final userDoc = querySnapshot.docs.first;
-        email = userDoc.data()['email'] ?? '';
-        debugPrint('📧 Email resuelto de Firestore: $email');
+      } else {
+        querySnapshot = await _db
+            .collection('users')
+            .where('usuario', isEqualTo: email)
+            .limit(1)
+            .get();
       }
+
+      if (querySnapshot.docs.isEmpty) {
+        debugPrint('❌ Usuario no encontrado en Firestore: $identifier');
+        return null;
+      }
+
+      final userDoc = querySnapshot.docs.first;
+      final userData = userDoc.data();
+      email = userData['email'] ?? '';
+      resolvedRole = userData['rol'] ?? 'comprador';
+      resolvedName = userData['nombre'] ?? 'Usuario';
+      resolvedUsername = userData['usuario'] ?? identifier;
 
       if (email.isEmpty) {
         debugPrint('❌ El correo electrónico está vacío.');
@@ -54,31 +66,21 @@ class AuthService {
         return null;
       }
 
-      // 3. Obtener el perfil del usuario desde Firestore
-      final userDoc = await _db.collection('users').doc(uid).get();
-      if (!userDoc.exists) {
-        debugPrint('❌ No se encontró el perfil de usuario en Firestore para UID: $uid');
-        return null;
-      }
+      _currentUser = Usuario(
+        id: uid,
+        nombre: resolvedName,
+        usuario: resolvedUsername,
+        rol: resolvedRole,
+        email: email,
+      );
 
-      final userData = userDoc.data()!;
-      final String userRole = originalRole ?? (userData['rol'] ?? apiRole);
-
-      _currentUser = Usuario.fromJson({
-        'id': uid,
-        'nombre': userData['nombre'] ?? 'Usuario',
-        'usuario': userData['usuario'] ?? identifier,
-        'rol': userRole,
-        'email': email,
-      });
-
-      // 4. Guardar sesión en SharedPreferences para autologin
+      // 3. Guardar sesión en SharedPreferences para autologin
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('user_id', _currentUser!.id);
-      await prefs.setString('user_name', _currentUser!.nombre);
-      await prefs.setString('user_role', userRole);
+      await prefs.setString('user_id', uid);
+      await prefs.setString('user_name', resolvedName);
+      await prefs.setString('user_role', resolvedRole);
 
-      debugPrint('✅ Sesión iniciada con éxito: ${_currentUser!.nombre} (${_currentUser!.rol})');
+      debugPrint('🔑 Sesión iniciada con éxito: ${_currentUser!.nombre} (${_currentUser!.rol})');
       return _currentUser;
     } catch (e) {
       debugPrint('❌ Error en signIn de AuthService: $e');
@@ -147,23 +149,61 @@ class AuthService {
     debugPrint('🚪 Sesión cerrada correctamente');
   }
 
-  /// Intenta restaurar sesión de forma automática
+  /// Intenta restaurar sesión de forma automática sincronizándola con Firebase Auth
   Future<Usuario?> tryAutoLogin() async {
-    final prefs = await SharedPreferences.getInstance();
-    final id = prefs.getString('user_id');
-    if (id == null) return null;
+    try {
+      // 1. Esperar a que Firebase Auth se inicialice y verifique si hay un usuario activo
+      final fbUser = await _auth.authStateChanges().first;
+      if (fbUser == null) {
+        debugPrint('🔄 tryAutoLogin: Firebase Auth indica que no hay sesión activa.');
+        return null;
+      }
 
-    final name = prefs.getString('user_name') ?? '';
-    final role = prefs.getString('user_role') ?? 'usuario';
+      final prefs = await SharedPreferences.getInstance();
+      final id = prefs.getString('user_id');
+      if (id == null || id != fbUser.uid) {
+        // Cargar datos de Firestore para asegurar la consistencia si no coincide el cache
+        final userDoc = await _db.collection('users').doc(fbUser.uid).get();
+        if (!userDoc.exists) {
+          debugPrint('❌ tryAutoLogin: No se encontró perfil de usuario en Firestore para UID: ${fbUser.uid}');
+          return null;
+        }
+        final userData = userDoc.data()!;
+        final name = userData['nombre'] ?? 'Usuario';
+        final role = userData['rol'] ?? 'comprador';
+        
+        _currentUser = Usuario(
+          id: fbUser.uid,
+          nombre: name,
+          usuario: userData['usuario'] ?? '',
+          rol: role,
+          email: fbUser.email,
+        );
+        
+        await prefs.setString('user_id', fbUser.uid);
+        await prefs.setString('user_name', name);
+        await prefs.setString('user_role', role);
+        
+        debugPrint('🔄 Autologin exitoso y sincronizado desde Firestore para: $name ($role)');
+        return _currentUser;
+      }
 
-    _currentUser = Usuario(
-      id: id,
-      nombre: name,
-      usuario: '',
-      rol: role,
-    );
-    
-    debugPrint('🔄 Autologin exitoso para: $name ($role)');
-    return _currentUser;
+      final name = prefs.getString('user_name') ?? '';
+      final role = prefs.getString('user_role') ?? 'comprador';
+
+      _currentUser = Usuario(
+        id: id,
+        nombre: name,
+        usuario: '',
+        rol: role,
+        email: fbUser.email,
+      );
+      
+      debugPrint('🔄 Autologin exitoso para: $name ($role)');
+      return _currentUser;
+    } catch (e) {
+      debugPrint('❌ Error en tryAutoLogin de AuthService: $e');
+      return null;
+    }
   }
 }

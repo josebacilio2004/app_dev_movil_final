@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:gestor_invetarios_pedidos_app/core/theme/app_theme.dart';
 import 'package:gestor_invetarios_pedidos_app/presentation/screens/login_screen.dart';
+import 'package:gestor_invetarios_pedidos_app/presentation/screens/home_screen.dart';
+import 'package:gestor_invetarios_pedidos_app/presentation/providers/auth_provider.dart';
 import 'package:gestor_invetarios_pedidos_app/firebase_options.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:gestor_invetarios_pedidos_app/core/services/notification_service.dart';
@@ -64,16 +66,27 @@ void _runSeedersIfNeeded() async {
   }
 }
 
-class AlyApp extends StatelessWidget {
+class AlyApp extends ConsumerWidget {
   const AlyApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final autoLoginAsync = ref.watch(autoLoginProvider);
+
     return MaterialApp(
       title: 'Comercializadora Aly',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.industrialTheme,
-      home: const LoginScreen(),
+      home: autoLoginAsync.when(
+        data: (user) => user != null ? const HomeScreen() : const LoginScreen(),
+        loading: () => const Scaffold(
+          backgroundColor: AppTheme.primaryDark,
+          body: Center(
+            child: CircularProgressIndicator(color: AppTheme.accentOrange),
+          ),
+        ),
+        error: (err, stack) => const LoginScreen(),
+      ),
     );
   }
 }

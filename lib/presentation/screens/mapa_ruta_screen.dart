@@ -7,6 +7,7 @@ import 'package:gestor_invetarios_pedidos_app/core/services/notification_service
 import 'package:gestor_invetarios_pedidos_app/data/services/geolocalizacion_service.dart';
 import 'package:gestor_invetarios_pedidos_app/data/models/ruta_model.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:gestor_invetarios_pedidos_app/presentation/widgets/common/app_drawer.dart';
 
 class MapaRutaScreen extends StatefulWidget {
   final String? usuarioId;
@@ -364,14 +365,17 @@ class _MapaRutaScreenState extends State<MapaRutaScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppTheme.primaryDark,
+      drawer: const AppDrawer(currentRoute: 'gps'),
       appBar: AppBar(
         title: Text(
           'RUTA A TIENDA ALY',
           style: GoogleFonts.outfit(fontWeight: FontWeight.w900, fontSize: 14, letterSpacing: 2),
         ),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded, color: AppTheme.accentOrange),
-          onPressed: () => Navigator.of(context).pop(),
+        leading: Builder(
+          builder: (context) => IconButton(
+            icon: const Icon(Icons.menu_rounded, color: AppTheme.accentOrange, size: 28),
+            onPressed: () => Scaffold.of(context).openDrawer(),
+          ),
         ),
       ),
       body: _isLoading

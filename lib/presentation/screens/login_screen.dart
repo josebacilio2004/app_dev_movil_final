@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gestor_invetarios_pedidos_app/core/theme/app_theme.dart';
 import 'package:gestor_invetarios_pedidos_app/presentation/providers/auth_provider.dart';
-import 'package:gestor_invetarios_pedidos_app/presentation/screens/dashboard_screen.dart';
+import 'package:gestor_invetarios_pedidos_app/presentation/screens/home_screen.dart';
 import 'package:gestor_invetarios_pedidos_app/presentation/screens/signup_screen.dart';
 import 'package:gestor_invetarios_pedidos_app/presentation/screens/password_recovery_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -57,22 +57,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         final prefs = await SharedPreferences.getInstance();
         final identifier = prefs.getString('bio_identifier') ?? '';
         final password = prefs.getString('bio_password') ?? '';
-        final role = prefs.getString('bio_role') ?? '';
 
-        if (identifier.isNotEmpty && password.isNotEmpty && role.isNotEmpty) {
+        if (identifier.isNotEmpty && password.isNotEmpty) {
           final authService = ref.read(authServiceProvider);
           
-          String apiRole = role;
-          if (apiRole == 'inversionista') apiRole = 'inversionistas';
-          if (apiRole == 'comprador') apiRole = 'compradores';
-          if (apiRole == 'operador') apiRole = 'operadores';
-
-          final user = await authService.signIn(identifier, password, apiRole, originalRole: role);
+          final user = await authService.signIn(identifier, password);
           if (user != null) {
             ref.read(authStateProvider.notifier).state = user;
             if (mounted) {
               Navigator.of(context).pushReplacement(
-                MaterialPageRoute(builder: (_) => const DashboardScreen()),
+                MaterialPageRoute(builder: (_) => const HomeScreen()),
               );
             }
           } else {
@@ -148,30 +142,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         return;
       }
 
-      final cachedRole = prefs.getString('bio_role') ?? '';
-      if (cachedRole != _selectedRole) {
-        if (mounted) {
-          showDialog(
-            context: context,
-            builder: (context) => AlertDialog(
-              backgroundColor: AppTheme.surfaceDark,
-              title: const Text('Rol Diferente', style: TextStyle(color: Colors.white)),
-              content: Text(
-                'La huella registrada pertenece al rol "${cachedRole.toUpperCase()}". Inicia sesión manualmente para actualizar tu huella al rol actual o selecciona el rol correspondiente.',
-                style: const TextStyle(color: AppTheme.textGray),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: const Text('Entendido', style: TextStyle(color: AppTheme.accentOrange)),
-                ),
-              ],
-            ),
-          );
-        }
-        return;
-      }
-
       await _handleBiometricLogin();
     } catch (e) {
       debugPrint('Error en botón biométrico: $e');
@@ -179,9 +149,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   Future<void> _handleLogin() async {
-    if (_selectedRole == null) {
+    final identifier = _idController.text.trim();
+    final password = _passwordController.text.trim();
+
+    if (identifier.isEmpty || password.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Por favor, selecciona un rol de acceso.')),
+        const SnackBar(content: Text('Por favor, complete todos los campos.')),
       );
       return;
     }
@@ -189,15 +162,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     setState(() => _isLoading = true);
     
     final authService = ref.read(authServiceProvider);
-    final identifier = _idController.text.trim();
-    final password = _passwordController.text.trim();
-    
-    String apiRole = _selectedRole!;
-    if (apiRole == 'inversionista') apiRole = 'inversionistas';
-    if (apiRole == 'comprador') apiRole = 'compradores';
-    if (apiRole == 'operador') apiRole = 'operadores';
-
-    final user = await authService.signIn(identifier, password, apiRole, originalRole: _selectedRole!);
+    final user = await authService.signIn(identifier, password);
     
     if (user != null) {
       // Guardar credenciales locales para biometría rápida
@@ -205,7 +170,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('bio_identifier', identifier);
         await prefs.setString('bio_password', password);
-        await prefs.setString('bio_role', _selectedRole!);
+        await prefs.setString('bio_role', user.rol);
         await prefs.setBool('bio_enabled', true);
       } catch (e) {
         debugPrint('Error guardando preferencias biométricas: $e');
@@ -216,13 +181,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       
       if (mounted) {
         Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const DashboardScreen()),
+          MaterialPageRoute(builder: (_) => const HomeScreen()),
         );
       }
     } else {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Credenciales inválidas para el rol seleccionado.')),
+          const SnackBar(content: Text('Usuario o contraseña incorrectos.')),
         );
       }
     }
@@ -244,7 +209,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           child: Column(
             children: [
               _buildTopBranding(),
-              if (_selectedRole == null) _buildRoleSelection() else _buildLoginForm(),
+              _buildLoginForm(),
             ],
           ),
         ),
@@ -293,95 +258,22 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     );
   }
 
-  Widget _buildRoleSelection() {
-    return Padding(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'SELECCIONA TU ROL DE ACCESO',
-            style: TextStyle(fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 2, color: AppTheme.textGray),
-          ),
-          const SizedBox(height: 24),
-          ..._roles.map((role) => _roleCard(role)).toList(),
-        ],
-      ),
-    );
-  }
-
-  Widget _roleCard(Map<String, String> role) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      child: InkWell(
-        onTap: () => setState(() => _selectedRole = role['id']),
-        child: Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: AppTheme.surfaceDark,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.white.withOpacity(0.05)),
-            boxShadow: [
-              BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 10, offset: const Offset(0, 4)),
-            ],
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 50,
-                height: 50,
-                decoration: BoxDecoration(
-                  color: AppTheme.accentOrange.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Center(child: Text(role['icon']!, style: const TextStyle(fontSize: 24))),
-              ),
-              const SizedBox(width: 20),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(role['label']!, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900, letterSpacing: 1)),
-                    Text(role['subtitle']!, style: const TextStyle(fontSize: 11, color: AppTheme.textGray)),
-                  ],
-                ),
-              ),
-              const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: AppTheme.textGray),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
   Widget _buildLoginForm() {
     return Padding(
       padding: const EdgeInsets.all(24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              IconButton(
-                onPressed: () => setState(() => _selectedRole = null),
-                icon: const Icon(Icons.arrow_back_rounded, color: AppTheme.accentOrange),
-              ),
-              const Text(
-                'RETORNAR',
-                style: TextStyle(fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 2, color: AppTheme.accentOrange),
-              ),
-            ],
-          ),
-          const SizedBox(height: 24),
-          Text(
-            'AUTENTICACIÓN: ${_selectedRole!.toUpperCase()}',
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Colors.white),
+          const SizedBox(height: 8),
+          const Text(
+            'INICIAR SESIÓN',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: 1),
           ),
           const SizedBox(height: 32),
           TextField(
             controller: _idController,
             decoration: const InputDecoration(
-              labelText: 'IDENTIFICADOR DE USUARIO',
+              labelText: 'IDENTIFICADOR (USUARIO O CORREO)',
               prefixIcon: Icon(Icons.person_outline_rounded),
             ),
           ),

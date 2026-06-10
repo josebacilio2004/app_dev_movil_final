@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gestor_invetarios_pedidos_app/core/theme/app_theme.dart';
 import 'package:gestor_invetarios_pedidos_app/presentation/providers/database_provider.dart';
+import 'package:gestor_invetarios_pedidos_app/presentation/widgets/common/app_drawer.dart';
 
 class OrderListScreen extends ConsumerWidget {
   const OrderListScreen({super.key});
@@ -12,7 +13,14 @@ class OrderListScreen extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: AppTheme.primaryDark,
+      drawer: const AppDrawer(currentRoute: 'orders'),
       appBar: AppBar(
+        leading: Builder(
+          builder: (context) => IconButton(
+            icon: const Icon(Icons.menu_rounded, color: AppTheme.accentOrange, size: 28),
+            onPressed: () => Scaffold.of(context).openDrawer(),
+          ),
+        ),
         title: const Text('PEDIDOS ALY', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16, letterSpacing: 1.5)),
         backgroundColor: Colors.transparent,
         elevation: 0,
