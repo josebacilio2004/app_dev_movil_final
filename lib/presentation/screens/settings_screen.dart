@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:gestor_invetarios_pedidos_app/core/theme/app_theme.dart';
 import 'package:gestor_invetarios_pedidos_app/presentation/widgets/common/app_drawer.dart';
 import 'package:gestor_invetarios_pedidos_app/presentation/widgets/common/glass_container.dart';
+import 'package:gestor_invetarios_pedidos_app/presentation/providers/settings_provider.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -274,6 +275,108 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                                 ],
                               ),
                             ],
+                          ],
+                        ),
+                      ),
+                      
+                      const SizedBox(height: 24),
+                      Text(
+                        'CIERRE AUTOMÁTICO DE SESIÓN',
+                        style: GoogleFonts.outfit(
+                          color: AppTheme.textGray,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 1.5,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      
+                      GlassContainer(
+                        padding: const EdgeInsets.all(20),
+                        borderRadius: 16,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Row(
+                                  children: [
+                                    const Icon(
+                                      Icons.security_rounded,
+                                      color: AppTheme.accentOrange,
+                                      size: 28,
+                                    ),
+                                    const SizedBox(width: 16),
+                                    Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          'Cierre Automático',
+                                          style: GoogleFonts.outfit(
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 14,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 2),
+                                        const Text(
+                                          'Elige cuándo se cerrará tu sesión.',
+                                          style: TextStyle(
+                                            color: AppTheme.textGray,
+                                            fontSize: 10,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 20),
+                            DropdownButtonFormField<AutoLogoutPolicy>(
+                              value: ref.watch(autoLogoutPolicyProvider),
+                              dropdownColor: AppTheme.surfaceDark,
+                              decoration: InputDecoration(
+                                labelText: 'MÉTODO DE EXPIRACIÓN',
+                                labelStyle: const TextStyle(color: AppTheme.accentOrange, fontSize: 11, fontWeight: FontWeight.bold),
+                                fillColor: Colors.white.withOpacity(0.01),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: BorderSide(color: Colors.white.withOpacity(0.08)),
+                                ),
+                              ),
+                              items: const [
+                                DropdownMenuItem(
+                                  value: AutoLogoutPolicy.inactivity,
+                                  child: Text('Por inactividad (5 minutos)', style: TextStyle(fontSize: 13)),
+                                ),
+                                DropdownMenuItem(
+                                  value: AutoLogoutPolicy.minimize,
+                                  child: Text('Al minimizar la aplicación', style: TextStyle(fontSize: 13)),
+                                ),
+                                DropdownMenuItem(
+                                  value: AutoLogoutPolicy.both,
+                                  child: Text('Ambos métodos (Recomendado)', style: TextStyle(fontSize: 13)),
+                                ),
+                                DropdownMenuItem(
+                                  value: AutoLogoutPolicy.disabled,
+                                  child: Text('Desactivado', style: TextStyle(fontSize: 13)),
+                                ),
+                              ],
+                              onChanged: (policy) {
+                                if (policy != null) {
+                                  ref.read(autoLogoutPolicyProvider.notifier).setPolicy(policy);
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text('Política de sesión actualizada a: ${policy == AutoLogoutPolicy.inactivity ? "Inactividad" : policy == AutoLogoutPolicy.minimize ? "Al minimizar" : policy == AutoLogoutPolicy.both ? "Ambos métodos" : "Desactivado"}'),
+                                      backgroundColor: AppTheme.successGreen,
+                                      duration: const Duration(seconds: 2),
+                                    ),
+                                  );
+                                }
+                              },
+                            ),
                           ],
                         ),
                       ),

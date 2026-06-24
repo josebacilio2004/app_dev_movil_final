@@ -13,6 +13,7 @@ import 'package:gestor_invetarios_pedidos_app/data/models/cart_item.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
+import 'package:gestor_invetarios_pedidos_app/presentation/screens/seguimiento_delivery_screen.dart';
 
 class PaymentGatewayScreen extends ConsumerStatefulWidget {
   const PaymentGatewayScreen({super.key});
@@ -1006,13 +1007,29 @@ class _PaymentGatewayScreenState extends ConsumerState<PaymentGatewayScreen> wit
                 ),
               ),
               const SizedBox(height: 12),
+              ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const SeguimientoDeliveryScreen()),
+                  );
+                },
+                icon: const Icon(Icons.local_shipping_rounded),
+                label: const Text('🚚 SEGUIMIENTO DE DELIVERY EN VIVO'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.successGreen,
+                  foregroundColor: Colors.white,
+                  minimumSize: const Size(double.infinity, 50),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+              const SizedBox(height: 12),
               ElevatedButton(
                 onPressed: () {
                   // Volver al inicio o catálogo
                   Navigator.of(context).popUntil((route) => route.isFirst);
                 },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.successGreen,
+                  backgroundColor: Colors.white10,
                   minimumSize: const Size(double.infinity, 50),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),

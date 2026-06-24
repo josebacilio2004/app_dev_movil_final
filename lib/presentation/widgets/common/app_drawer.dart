@@ -12,6 +12,8 @@ import 'package:gestor_invetarios_pedidos_app/presentation/screens/order_list_sc
 import 'package:gestor_invetarios_pedidos_app/presentation/screens/login_screen.dart';
 import 'package:gestor_invetarios_pedidos_app/presentation/screens/notification_inbox_screen.dart';
 import 'package:gestor_invetarios_pedidos_app/presentation/screens/settings_screen.dart';
+import 'package:gestor_invetarios_pedidos_app/presentation/screens/seguimiento_delivery_screen.dart';
+import 'package:gestor_invetarios_pedidos_app/presentation/screens/sensor_level_screen.dart';
 
 class AppDrawer extends ConsumerWidget {
   final String currentRoute;
@@ -42,14 +44,11 @@ class AppDrawer extends ConsumerWidget {
             ),
             child: Column(
               children: [
-                ColorFiltered(
-                  colorFilter: const ColorFilter.matrix([
-                    1, 0, 0, 0, 0,
-                    0, 1, 0, 0, 0,
-                    0, 0, 1, 0, 0,
-                    -1, -1, -1, 1, 255,
-                  ]),
-                  child: Image.asset('assets/logo_premium.png', height: 64),
+                Image.asset(
+                  'assets/logo_premium.png',
+                  height: 64,
+                  color: AppTheme.accentOrange,
+                  colorBlendMode: BlendMode.srcIn,
                 ),
                 const SizedBox(height: 16),
                 Text(
@@ -116,6 +115,20 @@ class AppDrawer extends ConsumerWidget {
                   icon: Icons.receipt_long_rounded,
                   isSelected: currentRoute == 'invoices',
                   onTap: () => _navigate(context, const BoletasScreen()),
+                ),
+                _drawerItem(
+                  context,
+                  label: 'SEGUIMIENTO DE DELIVERY',
+                  icon: Icons.local_shipping_rounded,
+                  isSelected: currentRoute == 'delivery_tracking',
+                  onTap: () => _navigate(context, const SeguimientoDeliveryScreen()),
+                ),
+                _drawerItem(
+                  context,
+                  label: 'NIVELADOR DIGITAL ALY',
+                  icon: Icons.architecture_rounded,
+                  isSelected: currentRoute == 'sensor_level',
+                  onTap: () => _navigate(context, const SensorLevelScreen()),
                 ),
                 _drawerItem(
                   context,

@@ -13,8 +13,11 @@ import 'dart:convert';
 import 'package:flutter/services.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:speech_to_text/speech_to_text.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'dart:math';
+import 'package:sensors_plus/sensors_plus.dart';
 
 class CatalogoScreen extends ConsumerStatefulWidget {
   final String userRole;
@@ -40,6 +43,10 @@ class _CatalogoScreenState extends ConsumerState<CatalogoScreen> with SingleTick
   // Estado Offline
   bool _isOffline = false;
   Timer? _connectivityTimer;
+
+  // Sensores (Shake to Refresh)
+  StreamSubscription? _accelerometerSubscription;
+  DateTime? _lastShakeTime;
 
   // Iconos de categoría para el UI
   static const Map<String, IconData> _categoryIcons = {
@@ -165,6 +172,9 @@ class _CatalogoScreenState extends ConsumerState<CatalogoScreen> with SingleTick
     // Iniciar chequeo de conectividad periódico (cada 8 segundos)
     _checkConnectivity();
     _connectivityTimer = Timer.periodic(const Duration(seconds: 8), (_) => _checkConnectivity());
+
+    // Configurar Shake to Refresh mediante acelerómetro
+    _setupShakeDetection();
   }
 
   @override
@@ -174,6 +184,7 @@ class _CatalogoScreenState extends ConsumerState<CatalogoScreen> with SingleTick
     _filterAnimController.dispose();
     _connectivityTimer?.cancel();
     _speechToText.stop();
+    _accelerometerSubscription?.cancel();
     // Limpiar el estado de búsqueda y filtros al salir de la pantalla para evitar estados persistentes residuales
     Future.microtask(() {
       if (ref.context.mounted) {
@@ -190,6 +201,57 @@ class _CatalogoScreenState extends ConsumerState<CatalogoScreen> with SingleTick
     _debounce = Timer(const Duration(milliseconds: 300), () {
       ref.read(searchQueryProvider.notifier).state = query;
     });
+  }
+
+  void _setupShakeDetection() {
+    if (kIsWeb) return;
+    
+    try {
+      const double shakeThreshold = 12.5;
+      _accelerometerSubscription = accelerometerEventStream().listen((AccelerometerEvent event) {
+        double gForce = sqrt(event.x * event.x + event.y * event.y + event.z * event.z);
+        gForce = (gForce - 9.8).abs();
+        
+        if (gForce > shakeThreshold) {
+          final now = DateTime.now();
+          if (_lastShakeTime == null || now.difference(_lastShakeTime!) > const Duration(seconds: 2)) {
+            _lastShakeTime = now;
+            _onShakeDetected();
+          }
+        }
+      });
+    } catch (e) {
+      debugPrint('No se pudo inicializar Shake-to-Refresh: $e');
+    }
+  }
+
+  void _onShakeDetected() {
+    HapticFeedback.mediumImpact();
+    ref.invalidate(catalogoStreamProvider);
+    
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.flash_on_rounded, color: AppTheme.accentOrange),
+              const SizedBox(width: 12),
+              Text(
+                '🔄 ¡Dispositivo sacudido! Recargando stock Aly...',
+                style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 12, color: Colors.white),
+              ),
+            ],
+          ),
+          backgroundColor: AppTheme.surfaceDark,
+          duration: const Duration(seconds: 2),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+            side: BorderSide(color: AppTheme.accentOrange.withOpacity(0.3)),
+          ),
+        ),
+      );
+    }
   }
 
   void _initSpeech() async {
