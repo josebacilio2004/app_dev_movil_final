@@ -4,6 +4,7 @@ import 'package:gestor_invetarios_pedidos_app/core/theme/app_theme.dart';
 import 'package:gestor_invetarios_pedidos_app/presentation/providers/auth_provider.dart';
 import 'package:gestor_invetarios_pedidos_app/data/services/reniec_service.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:gestor_invetarios_pedidos_app/presentation/screens/catalogo_screen.dart';
 
 class SignUpScreen extends ConsumerStatefulWidget {
   const SignUpScreen({super.key});
@@ -110,7 +111,10 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
               backgroundColor: AppTheme.successGreen,
             ),
           );
-          Navigator.of(context).pop(); // Retornar a Login
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(builder: (_) => CatalogoScreen(userRole: user.rol)),
+            (route) => false,
+          );
         }
       }
     } catch (e) {

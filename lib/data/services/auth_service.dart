@@ -129,6 +129,12 @@ class AuthService {
         rol: rol,
       );
 
+      // Guardar sesión en SharedPreferences para autologin inmediato
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('user_id', uid);
+      await prefs.setString('user_name', nombre);
+      await prefs.setString('user_role', rol);
+
       return _currentUser;
     } catch (e) {
       debugPrint('❌ Error en signUp de AuthService: $e');
@@ -144,7 +150,10 @@ class AuthService {
       debugPrint('⚠️ Error al desloguear de Firebase: $e');
     }
     final prefs = await SharedPreferences.getInstance();
-    await prefs.clear();
+    // Remover solo las claves de sesión activa, preservando huella dactilar (bio_*)
+    await prefs.remove('user_id');
+    await prefs.remove('user_name');
+    await prefs.remove('user_role');
     _currentUser = null;
     debugPrint('🚪 Sesión cerrada correctamente');
   }

@@ -86,10 +86,11 @@ class _MapaRutaScreenState extends State<MapaRutaScreen> {
       return;
     }
 
-    // Obtener la posición actual
+    // Obtener la posición actual con límite de tiempo (timeout)
     try {
       final position = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high,
+        timeLimit: const Duration(seconds: 3),
       );
       setState(() {
         _currentPosition = position;
@@ -99,7 +100,23 @@ class _MapaRutaScreenState extends State<MapaRutaScreen> {
       _initMapElements();
     } catch (e) {
       debugPrint('Error obteniendo coordenadas GPS: $e');
-      setState(() => _isLoading = false);
+      // Poner ubicación por defecto en Huancayo si falla o expira el tiempo
+      _currentPosition = Position(
+        latitude: -12.0668,
+        longitude: -75.2157,
+        timestamp: DateTime.now(),
+        accuracy: 10.0,
+        altitude: 0.0,
+        altitudeAccuracy: 0.0,
+        heading: 0.0,
+        headingAccuracy: 0.0,
+        speed: 0.0,
+        speedAccuracy: 0.0,
+      );
+      setState(() {
+        _isLoading = false;
+      });
+      _initMapElements();
     }
   }
 

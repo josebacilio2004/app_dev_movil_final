@@ -6,30 +6,29 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    // Helper para obtener el rol del usuario en la colección /users de forma segura
+    // Helper para obtener el rol del usuario de forma segura
     function getUserRole() {
       return exists(/databases/$(database)/documents/users/$(request.auth.uid))
         ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data.rol
         : 'comprador';
     }
 
-    // Regla para la colección de usuarios
+    // Reglas para la colección de usuarios
     match /users/{userId} {
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated() && request.auth.uid == userId;
+      allow read, create: if true;
       allow update: if isAuthenticated() && (request.auth.uid == userId || getUserRole() == 'admin');
       allow delete: if isAuthenticated() && getUserRole() == 'admin';
     }
 
     // Reglas para el catálogo de productos
     match /catalogo_productos/{productId} {
-      allow read: if isAuthenticated();
+      allow read: if true;
       allow write: if isAuthenticated() && (getUserRole() == 'admin' || getUserRole() == 'operador');
     }
 
     // Reglas para movimientos de inventario (auditoría)
     match /inventario_movimientos/{movementId} {
-      allow read: if isAuthenticated() && (getUserRole() == 'admin' || getUserRole() == 'inversionista');
+      allow read: if isAuthenticated() && (getUserRole() == 'admin' || getUserRole() == 'inversionista' || getUserRole() == 'operador');
       allow write: if isAuthenticated() && (getUserRole() == 'admin' || getUserRole() == 'operador');
     }
 
@@ -67,10 +66,52 @@ service cloud.firestore {
       allow read, write: if isAuthenticated();
     }
 
-    // Regla de lectura general para inversionistas y administradores en otras colecciones
-    match /{document=**} {
-      allow read, write: if isAuthenticated() && getUserRole() == 'admin';
-      allow read: if isAuthenticated() && getUserRole() == 'inversionista';
+    // Reglas para distribuidores
+    match /distribuidores/{id} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && (getUserRole() == 'admin' || getUserRole() == 'operador');
+    }
+
+    // Reglas para compradores
+    match /compradores/{id} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && (getUserRole() == 'admin' || getUserRole() == 'operador');
+    }
+
+    // Reglas para inversionistas
+    match /inversionistas/{id} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && (getUserRole() == 'admin' || getUserRole() == 'operador');
+    }
+
+    // Reglas para tandas
+    match /tandas/{id} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && (getUserRole() == 'admin' || getUserRole() == 'operador');
+    }
+
+    // Reglas para notas de tanda
+    match /tanda_notas/{id} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && (getUserRole() == 'admin' || getUserRole() == 'operador');
+    }
+
+    // Reglas para mayoristas_clientes
+    match /mayoristas_clientes/{id} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && (getUserRole() == 'admin' || getUserRole() == 'operador');
+    }
+
+    // Reglas para mayorista_stock
+    match /mayorista_stock/{id} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && (getUserRole() == 'admin' || getUserRole() == 'operador');
+    }
+
+    // Reglas para mayorista_ventas
+    match /mayorista_ventas/{id} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && (getUserRole() == 'admin' || getUserRole() == 'operador');
     }
   }
 }

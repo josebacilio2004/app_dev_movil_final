@@ -67,10 +67,15 @@ class _SeguimientoDeliveryScreenState extends State<SeguimientoDeliveryScreen> {
       LocationPermission permission = await Geolocator.checkPermission();
       
       if (serviceEnabled && (permission == LocationPermission.always || permission == LocationPermission.whileInUse)) {
-        final pos = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.medium);
+        final pos = await Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.medium,
+          timeLimit: const Duration(seconds: 3),
+        );
         _userLocation = LatLng(pos.latitude, pos.longitude);
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('Geolocator error or timeout: $e');
+    }
 
     // Fallback si no hay GPS/permisos (ej. en web o emulador sin geolocalización activa)
     // Trazaremos una dirección real en Huancayo

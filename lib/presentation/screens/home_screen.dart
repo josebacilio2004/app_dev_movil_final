@@ -11,6 +11,7 @@ import 'package:gestor_invetarios_pedidos_app/presentation/screens/boletas_scree
 import 'package:gestor_invetarios_pedidos_app/presentation/screens/order_list_screen.dart';
 import 'package:gestor_invetarios_pedidos_app/presentation/screens/dashboard_screen.dart';
 import 'package:gestor_invetarios_pedidos_app/presentation/screens/notification_inbox_screen.dart';
+import 'package:gestor_invetarios_pedidos_app/presentation/screens/ar_measurement_screen.dart';
 import 'package:gestor_invetarios_pedidos_app/presentation/widgets/connection_status_indicator.dart';
 
 class HomeScreen extends ConsumerWidget {
@@ -225,6 +226,13 @@ class HomeScreen extends ConsumerWidget {
         'icon': Icons.analytics_rounded,
         'screen': const DashboardScreen(),
         'emoji': '📈',
+      },
+      {
+        'title': 'MEDIDOR LÁSER AR',
+        'subtitle': 'Proyectar herramientas en obra',
+        'icon': Icons.photo_camera_rounded,
+        'screen': const ArMeasurementScreen(),
+        'emoji': '📸',
       },
     ];
 

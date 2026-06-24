@@ -77,7 +77,7 @@ class _BoletasScreenState extends ConsumerState<BoletasScreen> {
         shape: Border(bottom: BorderSide(color: Colors.white.withOpacity(0.05), width: 1)),
       ),
       body: StreamBuilder<List<Map<String, dynamic>>>(
-        stream: firestoreService.pedidosStream(),
+        stream: firestoreService.pedidosStream(compradorId: user.id, role: user.rol),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator(color: AppTheme.accentOrange));

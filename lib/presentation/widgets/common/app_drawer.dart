@@ -14,6 +14,7 @@ import 'package:gestor_invetarios_pedidos_app/presentation/screens/notification_
 import 'package:gestor_invetarios_pedidos_app/presentation/screens/settings_screen.dart';
 import 'package:gestor_invetarios_pedidos_app/presentation/screens/seguimiento_delivery_screen.dart';
 import 'package:gestor_invetarios_pedidos_app/presentation/screens/sensor_level_screen.dart';
+import 'package:gestor_invetarios_pedidos_app/presentation/screens/ar_measurement_screen.dart';
 
 class AppDrawer extends ConsumerWidget {
   final String currentRoute;
@@ -129,6 +130,13 @@ class AppDrawer extends ConsumerWidget {
                   icon: Icons.architecture_rounded,
                   isSelected: currentRoute == 'sensor_level',
                   onTap: () => _navigate(context, const SensorLevelScreen()),
+                ),
+                _drawerItem(
+                  context,
+                  label: 'MEDIDOR LÁSER AR',
+                  icon: Icons.photo_camera_rounded,
+                  isSelected: currentRoute == 'ar_camera',
+                  onTap: () => _navigate(context, const ArMeasurementScreen()),
                 ),
                 _drawerItem(
                   context,

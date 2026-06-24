@@ -224,7 +224,21 @@ class FirestoreService {
     await _db.collection('pedidos').doc(id).delete();
   }
 
-  Stream<List<Map<String, dynamic>>> pedidosStream() {
+  Stream<List<Map<String, dynamic>>> pedidosStream({String? compradorId, String? role}) {
+    if (compradorId != null && role?.toLowerCase() == 'comprador') {
+      return _db.collection('pedidos')
+          .where('comprador_id', isEqualTo: compradorId)
+          .snapshots()
+          .map((snapshot) {
+            final list = snapshot.docs.map((doc) => {'id': doc.id, ...doc.data()}).toList();
+            list.sort((a, b) {
+              final aFecha = a['fecha_pedido'] ?? '';
+              final bFecha = b['fecha_pedido'] ?? '';
+              return bFecha.compareTo(aFecha);
+            });
+            return list;
+          });
+    }
     return _db.collection('pedidos').orderBy('fecha_pedido', descending: true).snapshots().map(
       (snapshot) => snapshot.docs.map((doc) => {'id': doc.id, ...doc.data()}).toList(),
     );
