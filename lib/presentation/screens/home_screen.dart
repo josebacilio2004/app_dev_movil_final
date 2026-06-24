@@ -39,18 +39,12 @@ class HomeScreen extends ConsumerWidget {
         ),
         title: Row(
           children: [
-            ColorFiltered(
-              colorFilter: const ColorFilter.matrix([
-                1, 0, 0, 0, 0,
-                0, 1, 0, 0, 0,
-                0, 0, 1, 0, 0,
-                -1, -1, -1, 1, 255,
-              ]),
-              child: Image.asset(
-                'assets/logo_premium.png',
-                height: 24,
-                errorBuilder: (context, error, stackTrace) => const Icon(Icons.business, color: AppTheme.accentOrange),
-              ),
+            Image.asset(
+              'assets/logo_premium.png',
+              height: 24,
+              color: AppTheme.accentOrange,
+              colorBlendMode: BlendMode.srcIn,
+              errorBuilder: (context, error, stackTrace) => const Icon(Icons.business, color: AppTheme.accentOrange),
             ),
             const SizedBox(width: 12),
             Text(
