@@ -438,7 +438,7 @@ class _PaymentGatewayScreenState extends ConsumerState<PaymentGatewayScreen> wit
         shape: Border(bottom: BorderSide(color: Colors.white.withOpacity(0.05), width: 1)),
       ),
       body: _paymentSuccess
-          ? _buildSuccessReceipt(context, totalToPay)
+          ? _buildSuccessReceipt(context, _purchasedTotal)
           : Stack(
               children: [
                 SingleChildScrollView(
