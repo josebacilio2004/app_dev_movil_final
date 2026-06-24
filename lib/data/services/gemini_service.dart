@@ -42,6 +42,7 @@ class GeminiService {
             ]
           }
         },
+        options: Options(contentType: 'application/json'),
       );
 
       if (response.statusCode == 200) {
@@ -57,6 +58,9 @@ class GeminiService {
       return 'Lo siento, no pude procesar la respuesta en este momento. Intente de nuevo.';
     } catch (e) {
       debugPrint('Gemini API Error (trying fallback gemini-flash-latest): $e');
+      if (e is DioException) {
+        debugPrint('Gemini Primary Response Data: ${e.response?.data}');
+      }
       
       // Fallback to gemini-flash-latest (valid model name for Gemini 1.5 Flash in this project)
       try {
@@ -82,6 +86,7 @@ class GeminiService {
               ]
             }
           },
+          options: Options(contentType: 'application/json'),
         );
 
         if (response.statusCode == 200) {
@@ -96,6 +101,9 @@ class GeminiService {
         }
       } catch (err) {
         debugPrint('Gemini Fallback Error: $err');
+        if (err is DioException) {
+          debugPrint('Gemini Fallback Response Data: ${err.response?.data}');
+        }
       }
       return 'Error de comunicación con la IA de Gemini. Por favor, verifique su API Key o conexión de red.';
     }
