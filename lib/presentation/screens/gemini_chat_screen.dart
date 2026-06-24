@@ -118,8 +118,10 @@ class _GeminiChatScreenState extends State<GeminiChatScreen> {
   Widget _buildBanner() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      color: AppTheme.surfaceDark.withOpacity(0.4),
-      border: Border(bottom: BorderSide(color: Colors.white.withOpacity(0.05))),
+      decoration: BoxDecoration(
+        color: AppTheme.surfaceDark.withOpacity(0.4),
+        border: Border(bottom: BorderSide(color: Colors.white.withOpacity(0.05))),
+      ),
       child: const Row(
         children: [
           Text('🤖', style: TextStyle(fontSize: 20)),
