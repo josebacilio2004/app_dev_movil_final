@@ -1845,9 +1845,44 @@ class _AddEditProductDialogState extends ConsumerState<_AddEditProductDialog> {
 
   Future<void> _pickAndUploadImage() async {
     final ImagePicker picker = ImagePicker();
+    ImageSource? selectedSource;
+
+    if (!mounted) return;
+    
+    // Diálogo interactivo para que el usuario seleccione la fuente
+    await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppTheme.surfaceDark,
+        title: const Text('Origen de la Imagen', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        content: const Text('Selecciona si deseas tomar una foto en vivo con la cámara o cargarla desde la galería de tu dispositivo.', style: TextStyle(color: AppTheme.textGray, fontSize: 13)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        actions: [
+          TextButton.icon(
+            onPressed: () {
+              selectedSource = ImageSource.camera;
+              Navigator.of(context).pop();
+            },
+            icon: const Icon(Icons.camera_alt_rounded, color: AppTheme.accentOrange, size: 18),
+            label: const Text('Cámara', style: TextStyle(color: AppTheme.accentOrange, fontWeight: FontWeight.bold)),
+          ),
+          TextButton.icon(
+            onPressed: () {
+              selectedSource = ImageSource.gallery;
+              Navigator.of(context).pop();
+            },
+            icon: const Icon(Icons.photo_library_rounded, color: AppTheme.accentOrange, size: 18),
+            label: const Text('Galería', style: TextStyle(color: AppTheme.accentOrange, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+
+    if (selectedSource == null) return;
+
     try {
       final XFile? image = await picker.pickImage(
-        source: ImageSource.gallery,
+        source: selectedSource!,
         imageQuality: 80,
       );
 
@@ -1888,8 +1923,9 @@ class _AddEditProductDialogState extends ConsumerState<_AddEditProductDialog> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error al subir a Drive: $e'),
+            content: Text('Permiso denegado o error: Por favor habilita los permisos de cámara y almacenamiento en los ajustes del dispositivo.'),
             backgroundColor: AppTheme.errorRed,
+            duration: const Duration(seconds: 5),
           ),
         );
       }
