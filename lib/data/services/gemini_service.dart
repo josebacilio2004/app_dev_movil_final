@@ -1,13 +1,16 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 
 class GeminiService {
+  final FirebaseFirestore _db = FirebaseFirestore.instance;
+
   static const String _k1 = 'AQ.Ab8RN';
   static const String _k2 = '6KEY5XcbYmuq';
   static const String _k3 = 'Hp7b7dsYcM18J';
   static const String _k4 = 'rysS-Z6rOzSQcHHWczdA';
   
-  String get _apiKey => '$_k1$_k2$_k3$_k4';
+  String get _defaultApiKey => '$_k1$_k2$_k3$_k4';
   
   final String _model = 'gemini-2.5-flash';
   final Dio _dio = Dio(
@@ -17,9 +20,26 @@ class GeminiService {
     ),
   );
 
-  Future<String> chat({required List<Map<String, String>> history}) async {
+  Future<String> _getApiKey() async {
     try {
-      final String url = 'https://generativelanguage.googleapis.com/v1beta/models/$_model:generateContent?key=$_apiKey';
+      final doc = await _db.collection('config').doc('gemini').get();
+      if (doc.exists) {
+        final key = doc.data()?['apiKey'];
+        if (key != null && (key as String).trim().isNotEmpty) {
+          debugPrint('🔑 Usando API Key de Gemini desde Firestore.');
+          return key.trim();
+        }
+      }
+    } catch (e) {
+      debugPrint('⚠️ No se pudo obtener la API Key de Firestore, usando llave por defecto: $e');
+    }
+    return _defaultApiKey;
+  }
+
+  Future<String> chat({required List<Map<String, String>> history}) async {
+    final apiKey = await _getApiKey();
+    try {
+      final String url = 'https://generativelanguage.googleapis.com/v1beta/models/$_model:generateContent?key=$apiKey';
       
       final contents = history.map((msg) {
         return {
@@ -64,7 +84,7 @@ class GeminiService {
       
       // Fallback to gemini-flash-latest (valid model name for Gemini 1.5 Flash in this project)
       try {
-        final String fallbackUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=$_apiKey';
+        final String fallbackUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=$apiKey';
         final contents = history.map((msg) {
           return {
             'role': msg['role'] == 'user' ? 'user' : 'model',

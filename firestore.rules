@@ -103,5 +103,11 @@ service cloud.firestore {
       allow read: if isAuthenticated();
       allow write: if isAuthenticated() && (getUserRole() == 'admin' || getUserRole() == 'operador');
     }
+
+    // Reglas para configuración general
+    match /config/{documentId} {
+      allow read: if true;
+      allow write: if isAuthenticated() && (getUserRole() == 'admin');
+    }
   }
 }
