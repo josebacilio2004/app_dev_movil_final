@@ -12,6 +12,7 @@ import 'package:gestor_invetarios_pedidos_app/presentation/screens/order_list_sc
 import 'package:gestor_invetarios_pedidos_app/presentation/screens/dashboard_screen.dart';
 import 'package:gestor_invetarios_pedidos_app/presentation/screens/notification_inbox_screen.dart';
 import 'package:gestor_invetarios_pedidos_app/presentation/screens/ar_measurement_screen.dart';
+import 'package:gestor_invetarios_pedidos_app/presentation/screens/gemini_chat_screen.dart';
 import 'package:gestor_invetarios_pedidos_app/presentation/widgets/connection_status_indicator.dart';
 
 class HomeScreen extends ConsumerWidget {
@@ -233,6 +234,13 @@ class HomeScreen extends ConsumerWidget {
         'icon': Icons.photo_camera_rounded,
         'screen': const ArMeasurementScreen(),
         'emoji': '📸',
+      },
+      {
+        'title': 'ASISTENTE TÉCNICO IA',
+        'subtitle': 'Chat inteligente de soporte',
+        'icon': Icons.chat_bubble_outline_rounded,
+        'screen': const GeminiChatScreen(),
+        'emoji': '🤖',
       },
     ];
 

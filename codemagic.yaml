@@ -26,21 +26,8 @@ workflows:
       - name: Build Android APK
         script: |
           flutter build apk --release
-      - name: Build iOS (Unsigned IPA)
-        script: |
-          # Compilar el binario puro de iOS
-          flutter build ios --release --no-codesign
-          
-          # Crear la estructura manual perfecta de IPA (Payload) para Sideloadly
-          mkdir -p build/ios/ipa/Payload
-          cp -r build/ios/iphoneos/Runner.app build/ios/ipa/Payload/
-          
-          # Comprimirlo a formato .ipa
-          cd build/ios/ipa
-          zip -qr GestorAly.ipa Payload
     artifacts:
       - build/app/outputs/flutter-apk/*.apk
-      - build/ios/ipa/GestorAly.ipa
     publishing:
       email:
         recipients:

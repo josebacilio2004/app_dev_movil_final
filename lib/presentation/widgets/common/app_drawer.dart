@@ -15,6 +15,7 @@ import 'package:gestor_invetarios_pedidos_app/presentation/screens/settings_scre
 import 'package:gestor_invetarios_pedidos_app/presentation/screens/seguimiento_delivery_screen.dart';
 import 'package:gestor_invetarios_pedidos_app/presentation/screens/sensor_level_screen.dart';
 import 'package:gestor_invetarios_pedidos_app/presentation/screens/ar_measurement_screen.dart';
+import 'package:gestor_invetarios_pedidos_app/presentation/screens/gemini_chat_screen.dart';
 
 class AppDrawer extends ConsumerWidget {
   final String currentRoute;
@@ -137,6 +138,13 @@ class AppDrawer extends ConsumerWidget {
                   icon: Icons.photo_camera_rounded,
                   isSelected: currentRoute == 'ar_camera',
                   onTap: () => _navigate(context, const ArMeasurementScreen()),
+                ),
+                _drawerItem(
+                  context,
+                  label: 'ASISTENTE TÉCNICO IA',
+                  icon: Icons.chat_bubble_outline_rounded,
+                  isSelected: currentRoute == 'gemini_chat',
+                  onTap: () => _navigate(context, const GeminiChatScreen()),
                 ),
                 _drawerItem(
                   context,
