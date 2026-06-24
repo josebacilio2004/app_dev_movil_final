@@ -56,11 +56,11 @@ class GeminiService {
       }
       return 'Lo siento, no pude procesar la respuesta en este momento. Intente de nuevo.';
     } catch (e) {
-      debugPrint('Gemini API Error (trying fallback 1.5-flash): $e');
+      debugPrint('Gemini API Error (trying fallback gemini-flash-latest): $e');
       
-      // Fallback to 1.5-flash
+      // Fallback to gemini-flash-latest (valid model name for Gemini 1.5 Flash in this project)
       try {
-        final String fallbackUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=$_apiKey';
+        final String fallbackUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=$_apiKey';
         final contents = history.map((msg) {
           return {
             'role': msg['role'] == 'user' ? 'user' : 'model',
@@ -77,7 +77,7 @@ class GeminiService {
             'systemInstruction': {
               'parts': [
                 {
-                  'text': 'Eres el Asistente Técnico IA de Comercializadora Aly, una empresa de herramientas industriales y alineación. Ayuda a resolver dudas de torque, plomado, nivelación y productos. Responde con tono profesional en español.'
+                  'text': 'Eres el Asistente Técnico IA de Comercializadora Aly, una empresa líder en venta de herramientas industriales, niveladores digitales y equipos de alineación. Tu objetivo es ayudar a los clientes y operarios a calcular torques, resolver dudas técnicas sobre nivelación, recomendar herramientas del catálogo y brindar asesoría industrial de alta calidad. Responde siempre en español, con un tono profesional, técnico, servicial y usando emojis de herramientas de vez en cuando.'
                 }
               ]
             }
