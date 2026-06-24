@@ -34,17 +34,7 @@ service cloud.firestore {
 
     // Reglas para pedidos e inversiones (reforzado)
     match /pedidos/{pedidoId} {
-      allow read: if isAuthenticated() && (
-        resource.data.comprador_id == request.auth.uid || 
-        getUserRole() == 'admin' || 
-        getUserRole() == 'operador' || 
-        getUserRole() == 'inversionista'
-      );
-      allow create: if isAuthenticated() && (
-        request.resource.data.comprador_id == request.auth.uid ||
-        getUserRole() == 'admin' ||
-        getUserRole() == 'operador'
-      );
+      allow read, create: if isAuthenticated();
       allow update, delete: if isAuthenticated() && (
         getUserRole() == 'admin' || 
         getUserRole() == 'operador'
