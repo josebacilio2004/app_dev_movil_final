@@ -78,8 +78,34 @@ flutter run -d chrome
 ```
 
 ### 4. Compilar APK (Android)
-Para generar el instalador de depuración:
+Para generar el instalador de producción/release:
 ```bash
-flutter build apk --debug
+flutter build apk --release
 ```
-El archivo resultante se encuentra en `build/app/outputs/flutter-apk/app-debug.apk`.
+El archivo resultante se encuentra en `build/app/outputs/flutter-apk/app-release.apk`.
+
+---
+
+## 📋 Ejercicio 1 — Levantamiento de Observaciones y Correcciones Aplicadas
+
+Para dar cumplimiento a la rúbrica de la entrega final, a continuación se detallan las observaciones recibidas y las correcciones de software implementadas:
+
+### 1. Observación: El Ruteo Inicial no ingresaba directamente al Catálogo
+* **Detalle:** Al iniciar la aplicación con sesión activa (Autologin) o al realizar un Login manual/biométrico, se redirigía a una pantalla de inicio neutral (`HomeScreen`) en lugar del catálogo.
+* **Corrección:** Modificamos la navegación en [main.dart](lib/main.dart), [login_screen.dart](lib/presentation/screens/login_screen.dart) y [splash_screen.dart](lib/presentation/screens/splash_screen.dart). Ahora el flujo redirecciona directamente al usuario comprador a `CatalogoScreen` con su rol dinámico.
+
+### 2. Observación: Error en Registro de Usuarios y falta de Seguridad en Pedidos
+* **Detalle:** El registro de cuentas nuevas (`signUp`) generaba una excepción de seguridad de Firebase Firestore al evaluar recursivamente la regla `getUserRole()` antes de que el perfil de usuario existiera. Además, cualquier usuario logueado podía leer y escribir pedidos ajenos.
+* **Corrección:** 
+  * Modificamos [firestore.rules](firestore.rules) agregando comprobaciones `exists()` en `getUserRole()` y dividiendo la regla `/users` en permisos específicos de `create` y `update`.
+  * Reforzamos la seguridad de `/pedidos` restringiendo la lectura y escritura para que los compradores solo puedan acceder a los registros donde `comprador_id == request.auth.uid`.
+  * Modificamos `getPedidos` en [firestore_service.dart](lib/data/services/firestore_service.dart) para filtrar los pedidos de forma nativa por UID del comprador y realizar el ordenamiento cronológico en memoria, evitando requerir índices complejos de Firebase.
+
+### 3. Observación: El Carrito de compras se mezclaba entre cuentas
+* **Detalle:** Si un usuario agregaba productos al carrito, cerraba sesión e ingresaba con otra cuenta en el mismo dispositivo, los ítems agregados anteriormente persistían.
+* **Corrección:** Adaptamos los modelos de datos de productos y carrito para admitir serialización JSON. En [cart_provider.dart](lib/presentation/providers/cart_provider.dart) rediseñamos el gestor de estado para que `cartProvider` escuche a `authStateProvider` y cargue/guarde el carrito individualmente desde `SharedPreferences` usando una clave única (`cart_${userId}`). Al desloguearse, el carrito se limpia en memoria instantáneamente.
+
+### 4. Observación: Glitch de Foco en pasarela de pagos (CVV)
+* **Detalle:** El teclado de la tarjeta en la pasarela de pagos perdía el foco tras digitar cada número del CVV, interrumpiendo la usabilidad.
+* **Corrección:** Corregimos la inicialización de `FocusNode` en [payment_gateway_screen.dart](lib/presentation/screens/payment_gateway_screen.dart), moviendo la variable a nivel de clase de estado persistente (`_cvvFocusNode`) y liberándola en `dispose()`.
+
