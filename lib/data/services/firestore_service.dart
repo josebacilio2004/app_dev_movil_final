@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 /// Servicio de Firestore para Comercializadora Aly
 /// Reemplaza ApiService (Render/NeonDB) como backend principal.
@@ -179,8 +180,31 @@ class FirestoreService {
   // PEDIDOS (Compras / Inversiones)
   // ============================================================
   Future<List<Map<String, dynamic>>> getPedidos() async {
-    final snapshot = await _db.collection('pedidos').orderBy('fecha_pedido', descending: true).get();
-    return snapshot.docs.map((doc) => {'id': doc.id, ...doc.data()}).toList();
+    final fbUser = FirebaseAuth.instance.currentUser;
+    if (fbUser == null) return [];
+    
+    // Obtener rol del usuario actual
+    final userDoc = await _db.collection('users').doc(fbUser.uid).get();
+    final role = userDoc.data()?['rol'] ?? 'comprador';
+    
+    QuerySnapshot<Map<String, dynamic>> snapshot;
+    if (role == 'comprador') {
+      snapshot = await _db.collection('pedidos')
+          .where('comprador_id', isEqualTo: fbUser.uid)
+          .get();
+    } else {
+      snapshot = await _db.collection('pedidos').get();
+    }
+    
+    final list = snapshot.docs.map((doc) => {'id': doc.id, ...doc.data()}).toList();
+    // Ordenar en memoria por fecha_pedido descendente para evitar indexación compleja en Firebase
+    list.sort((a, b) {
+      final aFecha = a['fecha_pedido'] ?? '';
+      final bFecha = b['fecha_pedido'] ?? '';
+      return bFecha.compareTo(aFecha);
+    });
+    
+    return list;
   }
 
   Future<Map<String, dynamic>> createPedido(Map<String, dynamic> data) async {

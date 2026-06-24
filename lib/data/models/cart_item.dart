@@ -21,4 +21,18 @@ class CartItem {
 
   double get subtotal => producto.precioUnitario * cantidad;
   double get subtotalMayorista => producto.precioMayorista * cantidad;
+
+  factory CartItem.fromJson(Map<String, dynamic> json) {
+    return CartItem(
+      producto: CatalogoProducto.fromJson(json['producto'] as Map<String, dynamic>),
+      cantidad: json['cantidad'] as int,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'producto': producto.toJson(),
+      'cantidad': cantidad,
+    };
+  }
 }

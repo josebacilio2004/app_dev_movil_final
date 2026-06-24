@@ -1,9 +1,48 @@
+import 'dart:convert';
+import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gestor_invetarios_pedidos_app/data/models/cart_item.dart';
 import 'package:gestor_invetarios_pedidos_app/data/models/catalogo_producto.dart';
+import 'package:gestor_invetarios_pedidos_app/presentation/providers/auth_provider.dart';
 
 class CartNotifier extends StateNotifier<List<CartItem>> {
-  CartNotifier() : super([]);
+  final String? userId;
+
+  CartNotifier(this.userId) : super([]) {
+    if (userId != null) {
+      loadCart();
+    }
+  }
+
+  Future<void> loadCart() async {
+    if (userId == null) return;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final jsonStr = prefs.getString('cart_$userId');
+      if (jsonStr != null) {
+        final List<dynamic> decoded = jsonDecode(jsonStr);
+        state = decoded.map((item) => CartItem.fromJson(item as Map<String, dynamic>)).toList();
+        debugPrint('🛒 Carrito cargado para el usuario $userId: ${state.length} ítems');
+      } else {
+        state = [];
+      }
+    } catch (e) {
+      debugPrint('❌ Error al cargar el carrito: $e');
+    }
+  }
+
+  Future<void> _saveCart() async {
+    if (userId == null) return;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final jsonStr = jsonEncode(state.map((item) => item.toJson()).toList());
+      await prefs.setString('cart_$userId', jsonStr);
+      debugPrint('💾 Carrito guardado para el usuario $userId');
+    } catch (e) {
+      debugPrint('❌ Error al guardar el carrito: $e');
+    }
+  }
 
   /// Agrega un producto al carrito. Si ya existe, incrementa su cantidad.
   void addItem(CatalogoProducto producto, {int cantidad = 1}) {
@@ -18,11 +57,13 @@ class CartNotifier extends StateNotifier<List<CartItem>> {
     } else {
       state = [...state, CartItem(producto: producto, cantidad: cantidad)];
     }
+    _saveCart();
   }
 
   /// Remueve un ítem del carrito completamente.
   void removeItem(String productoId) {
     state = state.where((item) => item.producto.id != productoId).toList();
+    _saveCart();
   }
 
   /// Incrementa en 1 la cantidad de un producto.
@@ -33,6 +74,7 @@ class CartNotifier extends StateNotifier<List<CartItem>> {
       }
       return item;
     }).toList();
+    _saveCart();
   }
 
   /// Decrementa en 1 la cantidad de un producto. Si llega a 0, lo remueve.
@@ -43,6 +85,7 @@ class CartNotifier extends StateNotifier<List<CartItem>> {
       }
       return item;
     }).where((item) => item.cantidad > 0).toList();
+    _saveCart();
   }
 
   /// Modifica la cantidad de un producto directamente. Si es <= 0, lo remueve.
@@ -56,18 +99,21 @@ class CartNotifier extends StateNotifier<List<CartItem>> {
         }
         return item;
       }).toList();
+      _saveCart();
     }
   }
 
   /// Limpia todo el carrito.
   void clear() {
     state = [];
+    _saveCart();
   }
 }
 
-// Provider global para interactuar con el carrito
+// Provider global para interactuar con el carrito (dependiente del usuario)
 final cartProvider = StateNotifierProvider<CartNotifier, List<CartItem>>((ref) {
-  return CartNotifier();
+  final user = ref.watch(authStateProvider);
+  return CartNotifier(user?.id);
 });
 
 // Provider para la cantidad total de productos en el carrito (suma de cantidades)

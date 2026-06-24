@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:gestor_invetarios_pedidos_app/core/theme/app_theme.dart';
 import 'package:gestor_invetarios_pedidos_app/presentation/providers/auth_provider.dart';
 import 'package:gestor_invetarios_pedidos_app/presentation/screens/home_screen.dart';
+import 'package:gestor_invetarios_pedidos_app/presentation/screens/catalogo_screen.dart';
 import 'package:gestor_invetarios_pedidos_app/presentation/screens/login_screen.dart';
 import 'package:gestor_invetarios_pedidos_app/data/models/usuario.dart';
 
@@ -90,7 +91,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with SingleTickerPr
     Navigator.of(context).pushReplacement(
       PageRouteBuilder(
         pageBuilder: (context, animation, secondaryAnimation) => 
-            user != null ? const HomeScreen() : const LoginScreen(),
+            user != null ? CatalogoScreen(userRole: user.rol) : const LoginScreen(),
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
           return FadeTransition(
             opacity: animation,

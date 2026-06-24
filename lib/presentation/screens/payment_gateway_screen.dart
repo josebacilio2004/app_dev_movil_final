@@ -28,6 +28,7 @@ class _PaymentGatewayScreenState extends ConsumerState<PaymentGatewayScreen> wit
   final _cardHolderController = TextEditingController();
   final _expiryController = TextEditingController();
   final _cvvController = TextEditingController();
+  final _cvvFocusNode = FocusNode();
 
   bool _isProcessing = false;
   bool _paymentSuccess = false;
@@ -74,6 +75,7 @@ class _PaymentGatewayScreenState extends ConsumerState<PaymentGatewayScreen> wit
     _cardHolderController.dispose();
     _expiryController.dispose();
     _cvvController.dispose();
+    _cvvFocusNode.dispose();
     _flipController.dispose();
     super.dispose();
   }
@@ -813,7 +815,7 @@ class _PaymentGatewayScreenState extends ConsumerState<PaymentGatewayScreen> wit
   Widget _buildCVVField() {
     return TextFormField(
       controller: _cvvController,
-      focusNode: FocusNode(),
+      focusNode: _cvvFocusNode,
       keyboardType: TextInputType.number,
       style: const TextStyle(color: Colors.white, fontSize: 14),
       inputFormatters: [

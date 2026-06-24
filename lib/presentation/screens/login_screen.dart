@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gestor_invetarios_pedidos_app/core/theme/app_theme.dart';
 import 'package:gestor_invetarios_pedidos_app/presentation/providers/auth_provider.dart';
 import 'package:gestor_invetarios_pedidos_app/presentation/screens/home_screen.dart';
+import 'package:gestor_invetarios_pedidos_app/presentation/screens/catalogo_screen.dart';
 import 'package:gestor_invetarios_pedidos_app/presentation/screens/signup_screen.dart';
 import 'package:gestor_invetarios_pedidos_app/presentation/screens/password_recovery_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -69,7 +70,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             ref.read(authStateProvider.notifier).state = user;
             if (mounted) {
               Navigator.of(context).pushReplacement(
-                MaterialPageRoute(builder: (_) => const HomeScreen()),
+                MaterialPageRoute(builder: (_) => CatalogoScreen(userRole: user.rol)),
               );
             }
           } else {
@@ -207,7 +208,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       
       if (mounted) {
         Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const HomeScreen()),
+          MaterialPageRoute(builder: (_) => CatalogoScreen(userRole: user.rol)),
         );
       }
     } else {
