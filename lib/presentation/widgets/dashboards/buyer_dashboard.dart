@@ -45,7 +45,7 @@ class BuyerDashboard extends ConsumerWidget {
         _buildSectionHeader('🛒 DASHBOARD COMPRADOR', 'Gestión operativa y financiera de inversiones.'),
         const SizedBox(height: 16),
         ordersAsync.when(
-          data: (orders) => _buildStatsGrid(orders),
+          data: (orders) => _buildStatsGrid(context, orders),
           loading: () => const LinearProgressIndicator(),
           error: (e, _) => const SizedBox(),
         ),
@@ -61,7 +61,7 @@ class BuyerDashboard extends ConsumerWidget {
     );
   }
 
-  Widget _buildStatsGrid(List<Map<String, dynamic>> orders) {
+  Widget _buildStatsGrid(BuildContext context, List<Map<String, dynamic>> orders) {
     double gestionado = 0;
     double devuelto = 0;
     double ganGenerada = 0;
@@ -79,13 +79,16 @@ class BuyerDashboard extends ConsumerWidget {
       ganGenerada += (g1 > g2 ? (g1 > g3 ? g1 : g3) : (g2 > g3 ? g2 : g3));
     }
 
+    final double width = MediaQuery.of(context).size.width;
+    final bool isDesktop = width > 700;
+
     return GridView.count(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      crossAxisCount: 2,
+      crossAxisCount: isDesktop ? 3 : 2,
       crossAxisSpacing: 12,
       mainAxisSpacing: 12,
-      childAspectRatio: 1.8,
+      childAspectRatio: isDesktop ? 2.2 : 1.8,
       children: [
         _statCard('CAPITAL GESTIONADO', 'S/ ${gestionado.toStringAsFixed(2)}', AppTheme.accentOrange),
         _statCard('CAPITAL DEVUELTO', 'S/ ${devuelto.toStringAsFixed(2)}', AppTheme.successGreen),
@@ -138,7 +141,8 @@ class BuyerDashboard extends ConsumerWidget {
   }
 
   Widget _buildCapitalHistoryChart() => LineChart(LineChartData(gridData: const FlGridData(show: false), titlesData: const FlTitlesData(show: false), borderData: FlBorderData(show: false), lineBarsData: [LineChartBarData(spots: [const FlSpot(0, 3), const FlSpot(1, 4), const FlSpot(2, 5), const FlSpot(3, 7)], isCurved: true, color: AppTheme.accentOrange, barWidth: 3, dotData: const FlDotData(show: false), belowBarData: BarAreaData(show: true, color: AppTheme.accentOrange.withOpacity(0.05)))]));
-  Widget _buildStatusPieChart() => PieChart(PieChartData(sections: [PieChartSectionData(value: 70, color: AppTheme.successGreen, radius: 5, showTitle: false), PieChartSectionData(value: 30, color: AppTheme.accentOrange, radius: 5, showTitle: false)], centerSpaceRadius: 25));
+
+  Widget _buildStatusPieChart() => PieChart(PieChartData(sectionsSpace: 4, centerSpaceRadius: 20, sections: [PieChartSectionData(color: AppTheme.accentOrange, value: 40, title: 'Pend.', radius: 24, titleStyle: const TextStyle(fontSize: 8, color: Colors.white, fontWeight: FontWeight.bold)), PieChartSectionData(color: AppTheme.successGreen, value: 35, title: 'Dev.', radius: 24, titleStyle: const TextStyle(fontSize: 8, color: Colors.white, fontWeight: FontWeight.bold)), PieChartSectionData(color: Colors.blueAccent, value: 25, title: 'Proceso', radius: 24, titleStyle: const TextStyle(fontSize: 8, color: Colors.white, fontWeight: FontWeight.bold))]));
 
   Widget _buildOrdersToChargeTable(WidgetRef ref) {
     final ordersAsync = ref.watch(ordersFutureProvider);

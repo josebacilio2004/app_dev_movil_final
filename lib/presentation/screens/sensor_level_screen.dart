@@ -7,6 +7,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:sensors_plus/sensors_plus.dart';
 import 'package:gestor_invetarios_pedidos_app/core/theme/app_theme.dart';
 import 'package:gestor_invetarios_pedidos_app/presentation/widgets/common/app_drawer.dart';
+import 'package:gestor_invetarios_pedidos_app/presentation/widgets/common/web_sidebar.dart';
 
 class SensorLevelScreen extends StatefulWidget {
   const SensorLevelScreen({super.key});
@@ -163,62 +164,87 @@ class _SensorLevelScreenState extends State<SensorLevelScreen> {
   Widget build(BuildContext context) {
     final Size containerSize = const Size(300, 300);
     final themeColor = _isAligned ? AppTheme.successGreen : AppTheme.accentOrange;
+    final bool isWeb = kIsWeb || MediaQuery.of(context).size.width >= 900;
 
-    return Scaffold(
-      backgroundColor: AppTheme.primaryDark,
-      drawer: const AppDrawer(currentRoute: 'sensor_level'),
-      appBar: AppBar(
-        title: Text(
-          'NIVELADOR DIGITAL INDUSTRIAL',
-          style: GoogleFonts.outfit(fontWeight: FontWeight.w900, fontSize: 13, letterSpacing: 1.5),
-        ),
-        leading: Builder(
-          builder: (context) => IconButton(
-            icon: const Icon(Icons.menu_rounded, color: AppTheme.accentOrange, size: 28),
-            onPressed: () => Scaffold.of(context).openDrawer(),
-          ),
-        ),
+    final appBar = AppBar(
+      title: Text(
+        'NIVELADOR DIGITAL INDUSTRIAL',
+        style: GoogleFonts.outfit(fontWeight: FontWeight.w900, fontSize: 13, letterSpacing: 1.5),
       ),
-      body: SingleChildScrollView(
-        physics: const BouncingScrollPhysics(),
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-        child: Center(
-          child: Container(
-            constraints: const BoxConstraints(maxWidth: 600),
-            child: Column(
-              children: [
-                // Cabecera descriptiva
-                _buildHeaderCard(),
-                const SizedBox(height: 24),
-
-                // Cuadrícula y Burbuja de Nivel
-                GestureDetector(
-                  onPanUpdate: (details) => _handleSimulationDrag(details, containerSize),
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      // Anillos concéntricos del nivel
-                      _buildLevelTarget(containerSize, themeColor),
-
-                      // Burbuja de nivelación móvil
-                      _buildMovingBubble(containerSize, themeColor),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 32),
-
-                // Lectura digital de ángulos (Pitch / Roll)
-                _buildAngleReadout(themeColor),
-                const SizedBox(height: 24),
-
-                // Botones / Informativos de simulación
-                _buildSimulationFooter(),
-              ],
+      leading: isWeb
+          ? null
+          : Builder(
+              builder: (context) => IconButton(
+                icon: const Icon(Icons.menu_rounded, color: AppTheme.accentOrange, size: 28),
+                onPressed: () => Scaffold.of(context).openDrawer(),
+              ),
             ),
+    );
+
+    final mainContent = SingleChildScrollView(
+      physics: const BouncingScrollPhysics(),
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+      child: Center(
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 600),
+          child: Column(
+            children: [
+              // Cabecera descriptiva
+              _buildHeaderCard(),
+              const SizedBox(height: 24),
+
+              // Cuadrícula y Burbuja de Nivel
+              GestureDetector(
+                onPanUpdate: (details) => _handleSimulationDrag(details, containerSize),
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    // Anillos concéntricos del nivel
+                    _buildLevelTarget(containerSize, themeColor),
+
+                    // Burbuja de nivelación móvil
+                    _buildMovingBubble(containerSize, themeColor),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 32),
+
+              // Lectura digital de ángulos (Pitch / Roll)
+              _buildAngleReadout(themeColor),
+              const SizedBox(height: 24),
+
+              // Botones / Informativos de simulación
+              _buildSimulationFooter(),
+            ],
           ),
         ),
       ),
     );
+
+    if (isWeb) {
+      return Scaffold(
+        backgroundColor: AppTheme.primaryDark,
+        body: Row(
+          children: [
+            const WebSidebar(currentRoute: 'sensor_level'),
+            Expanded(
+              child: Scaffold(
+                backgroundColor: Colors.transparent,
+                appBar: appBar,
+                body: mainContent,
+              ),
+            ),
+          ],
+        ),
+      );
+    } else {
+      return Scaffold(
+        backgroundColor: AppTheme.primaryDark,
+        drawer: const AppDrawer(currentRoute: 'sensor_level'),
+        appBar: appBar,
+        body: mainContent,
+      );
+    }
   }
 
   Widget _buildHeaderCard() {

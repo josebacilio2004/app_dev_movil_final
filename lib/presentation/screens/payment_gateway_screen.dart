@@ -14,6 +14,7 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:gestor_invetarios_pedidos_app/presentation/screens/seguimiento_delivery_screen.dart';
+import 'package:geolocator/geolocator.dart';
 
 class PaymentGatewayScreen extends ConsumerStatefulWidget {
   const PaymentGatewayScreen({super.key});
@@ -95,6 +96,55 @@ class _PaymentGatewayScreenState extends ConsumerState<PaymentGatewayScreen> wit
 
   Future<void> _processPayment() async {
     if (!_formKey.currentState!.validate()) return;
+
+    // Solicitar permiso de geolocalización para el delivery antes de confirmar
+    bool serviceEnabled;
+    LocationPermission permission;
+
+    try {
+      serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Por favor, active los servicios de geolocalización/GPS para el delivery.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        return;
+      }
+
+      permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Permiso de geolocalización denegado. Es obligatorio para procesar el delivery.'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+          return;
+        }
+      }
+
+      if (permission == LocationPermission.deniedForever) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Los permisos de geolocalización están permanentemente denegados. Por favor, actívelos en los ajustes.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        return;
+      }
+    } catch (e) {
+      debugPrint('Error al verificar geolocalización: $e');
+    }
 
     setState(() {
       _isProcessing = true;
@@ -437,54 +487,59 @@ class _PaymentGatewayScreenState extends ConsumerState<PaymentGatewayScreen> wit
         ),
         shape: Border(bottom: BorderSide(color: Colors.white.withOpacity(0.05), width: 1)),
       ),
-      body: _paymentSuccess
-          ? _buildSuccessReceipt(context, _purchasedTotal)
-          : Stack(
-              children: [
-                SingleChildScrollView(
-                  padding: const EdgeInsets.all(20),
-                  child: Form(
-                    key: _formKey,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        const SizedBox(height: 10),
-                        // Tarjeta interactiva animada
-                        Center(child: _buildAnimatedCard()),
-                        const SizedBox(height: 32),
-                        // Campos de Formulario
-                        Text(
-                          'INFORMACIÓN DE FACTURACIÓN',
-                          style: GoogleFonts.outfit(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: 1.5,
-                            color: AppTheme.accentOrange,
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        _buildCardHolderField(),
-                        const SizedBox(height: 16),
-                        _buildCardNumberField(),
-                        const SizedBox(height: 16),
-                        Row(
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 600),
+          child: _paymentSuccess
+              ? _buildSuccessReceipt(context, _purchasedTotal)
+              : Stack(
+                  children: [
+                    SingleChildScrollView(
+                      padding: const EdgeInsets.all(20),
+                      child: Form(
+                        key: _formKey,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            Expanded(child: _buildExpiryField()),
-                            const SizedBox(width: 16),
-                            Expanded(child: _buildCVVField()),
+                            const SizedBox(height: 10),
+                            // Tarjeta interactiva animada
+                            Center(child: _buildAnimatedCard()),
+                            const SizedBox(height: 32),
+                            // Campos de Formulario
+                            Text(
+                              'INFORMACIÓN DE FACTURACIÓN',
+                              style: GoogleFonts.outfit(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: 1.5,
+                                color: AppTheme.accentOrange,
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            _buildCardHolderField(),
+                            const SizedBox(height: 16),
+                            _buildCardNumberField(),
+                            const SizedBox(height: 16),
+                            Row(
+                              children: [
+                                Expanded(child: _buildExpiryField()),
+                                const SizedBox(width: 16),
+                                Expanded(child: _buildCVVField()),
+                              ],
+                            ),
+                            const SizedBox(height: 40),
+                            _buildPayButton(totalToPay),
+                            const SizedBox(height: 20),
+                            _buildSecureShield(),
                           ],
                         ),
-                        const SizedBox(height: 40),
-                        _buildPayButton(totalToPay),
-                        const SizedBox(height: 20),
-                        _buildSecureShield(),
-                      ],
+                      ),
                     ),
-                  ),
+                    if (_isProcessing) _buildProcessingOverlay(),
+                  ],
                 ),
-                if (_isProcessing) _buildProcessingOverlay(),
-              ],
-            ),
+        ),
+      ),
     );
   }
 

@@ -1,8 +1,10 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:gestor_invetarios_pedidos_app/core/theme/app_theme.dart';
 import 'package:gestor_invetarios_pedidos_app/presentation/providers/auth_provider.dart';
+import 'package:gestor_invetarios_pedidos_app/presentation/widgets/common/web_sidebar.dart';
 import 'package:gestor_invetarios_pedidos_app/presentation/providers/investor_nav_provider.dart';
 import 'package:gestor_invetarios_pedidos_app/presentation/providers/buyer_nav_provider.dart';
 import 'package:gestor_invetarios_pedidos_app/presentation/screens/login_screen.dart';
@@ -28,58 +30,77 @@ class DashboardScreen extends ConsumerWidget {
 
     final profile = {'id': user.id, 'nombre': user.nombre, 'usuario': user.usuario, 'rol': user.rol};
 
-    return Scaffold(
-      backgroundColor: AppTheme.primaryDark,
-      drawer: const AppDrawer(currentRoute: 'dashboard'),
-      appBar: AppBar(
-        leading: Builder(
-          builder: (context) => IconButton(
-            icon: const Icon(Icons.menu_rounded, color: AppTheme.accentOrange),
-            onPressed: () => Scaffold.of(context).openDrawer(),
-          ),
-        ),
-        title: Row(
-          children: [
-            ColorFiltered(
-              colorFilter: const ColorFilter.matrix([
-                1, 0, 0, 0, 0,
-                0, 1, 0, 0, 0,
-                0, 0, 1, 0, 0,
-                -1, -1, -1, 1, 255,
-              ]),
-              child: Image.asset(
-                'assets/logo_premium.png',
-                height: 24,
-                errorBuilder: (context, error, stackTrace) => const Icon(Icons.business, color: AppTheme.accentOrange),
+    final bool isWeb = kIsWeb || MediaQuery.of(context).size.width >= 900;
+
+    final appBar = AppBar(
+      leading: isWeb
+          ? null
+          : Builder(
+              builder: (context) => IconButton(
+                icon: const Icon(Icons.menu_rounded, color: AppTheme.accentOrange),
+                onPressed: () => Scaffold.of(context).openDrawer(),
               ),
             ),
-            const SizedBox(width: 12),
-            Text(
-              'ALY INDUSTRIAL',
-              style: GoogleFonts.outfit(
-                fontSize: 14,
-                fontWeight: FontWeight.w900,
-                letterSpacing: 1,
-                color: Colors.white,
+      title: Row(
+        children: [
+          Image.asset(
+            'assets/logo-validado.png',
+            height: 24,
+            fit: BoxFit.contain,
+            errorBuilder: (context, error, stackTrace) => const Icon(Icons.business, color: AppTheme.accentOrange),
+          ),
+          const SizedBox(width: 12),
+          Text(
+            'ALY INDUSTRIAL',
+            style: GoogleFonts.outfit(
+              fontSize: 14,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 1,
+              color: Colors.white,
+            ),
+          ),
+        ],
+      ),
+      backgroundColor: AppTheme.surfaceDark,
+      elevation: 0,
+      shape: Border(bottom: BorderSide(color: Colors.white.withOpacity(0.05), width: 1)),
+      centerTitle: false,
+      iconTheme: const IconThemeData(color: AppTheme.accentOrange, size: 28),
+      actions: [
+        IconButton(
+          onPressed: () {},
+          icon: const Icon(Icons.notifications_none_rounded, color: AppTheme.textGray),
+        ),
+        const SizedBox(width: 8),
+      ],
+    );
+
+    final mainContent = _buildDashboardSelector(context, user, ref);
+
+    if (isWeb) {
+      return Scaffold(
+        backgroundColor: AppTheme.primaryDark,
+        body: Row(
+          children: [
+            const WebSidebar(currentRoute: 'dashboard'),
+            Expanded(
+              child: Scaffold(
+                backgroundColor: Colors.transparent,
+                appBar: appBar,
+                body: mainContent,
               ),
             ),
           ],
         ),
-        backgroundColor: AppTheme.surfaceDark,
-        elevation: 0,
-        shape: Border(bottom: BorderSide(color: Colors.white.withOpacity(0.05), width: 1)),
-        centerTitle: false,
-        iconTheme: const IconThemeData(color: AppTheme.accentOrange, size: 28),
-        actions: [
-          IconButton(
-            onPressed: () {},
-            icon: const Icon(Icons.notifications_none_rounded, color: AppTheme.textGray),
-          ),
-          const SizedBox(width: 8),
-        ],
-      ),
-      body: _buildDashboardSelector(context, user, ref),
-    );
+      );
+    } else {
+      return Scaffold(
+        backgroundColor: AppTheme.primaryDark,
+        drawer: const AppDrawer(currentRoute: 'dashboard'),
+        appBar: appBar,
+        body: mainContent,
+      );
+    }
   }
 
   Widget _buildDashboardSelector(BuildContext context, Usuario user, WidgetRef ref) {

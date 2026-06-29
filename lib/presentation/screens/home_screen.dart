@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -14,6 +15,7 @@ import 'package:gestor_invetarios_pedidos_app/presentation/screens/notification_
 import 'package:gestor_invetarios_pedidos_app/presentation/screens/ar_measurement_screen.dart';
 import 'package:gestor_invetarios_pedidos_app/presentation/screens/gemini_chat_screen.dart';
 import 'package:gestor_invetarios_pedidos_app/presentation/widgets/connection_status_indicator.dart';
+import 'package:gestor_invetarios_pedidos_app/presentation/widgets/common/web_sidebar.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -28,90 +30,114 @@ class HomeScreen extends ConsumerWidget {
 
     final String name = user.nombre;
     final String role = user.rol.toLowerCase();
+    final bool isWeb = kIsWeb || MediaQuery.of(context).size.width >= 900;
 
-    return Scaffold(
-      backgroundColor: AppTheme.primaryDark,
-      drawer: const AppDrawer(currentRoute: 'home'),
-      appBar: AppBar(
-        leading: Builder(
-          builder: (context) => IconButton(
-            icon: const Icon(Icons.menu_rounded, color: AppTheme.accentOrange, size: 28),
-            onPressed: () => Scaffold.of(context).openDrawer(),
-          ),
-        ),
-        title: Row(
-          children: [
-            Image.asset(
-              'assets/logo_premium.png',
-              height: 24,
-              color: AppTheme.accentOrange,
-              colorBlendMode: BlendMode.srcIn,
-              errorBuilder: (context, error, stackTrace) => const Icon(Icons.business, color: AppTheme.accentOrange),
-            ),
-            const SizedBox(width: 12),
-            Text(
-              'ALY INDUSTRIAL',
-              style: GoogleFonts.outfit(
-                fontSize: 14,
-                fontWeight: FontWeight.w900,
-                letterSpacing: 1,
-                color: Colors.white,
-              ),
-            ),
-          ],
-        ),
-        backgroundColor: AppTheme.surfaceDark,
-        elevation: 0,
-        shape: Border(bottom: BorderSide(color: Colors.white.withOpacity(0.05), width: 1)),
-        centerTitle: false,
-        actions: [
-          const ConnectionStatusIndicator(),
-          const SizedBox(width: 8),
-          IconButton(
-            icon: const Icon(Icons.notifications_rounded, color: AppTheme.accentOrange, size: 24),
-            onPressed: () {
-              Navigator.of(context).pushReplacement(
-                MaterialPageRoute(builder: (_) => const NotificationInboxScreen()),
-              );
-            },
-            tooltip: 'Ver Notificaciones',
-          ),
-          const SizedBox(width: 8),
-        ],
-      ),
-      body: SingleChildScrollView(
-        physics: const BouncingScrollPhysics(),
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-        child: Center(
-          child: Container(
-            constraints: const BoxConstraints(maxWidth: 800),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Banner de Bienvenida Glassmórfico
-                _buildWelcomeBanner(name, user.rol),
-                const SizedBox(height: 32),
-                
-                // Título de sección
-                Text(
-                  'MÓDULOS DE GESTIÓN OPERATIVA',
-                  style: GoogleFonts.outfit(
-                    color: AppTheme.textGray,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 1.5,
-                  ),
+    final mainContent = SingleChildScrollView(
+      physics: const BouncingScrollPhysics(),
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+      child: Center(
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 800),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Banner de Bienvenida Glassmórfico
+              _buildWelcomeBanner(name, user.rol),
+              const SizedBox(height: 32),
+              
+              // Título de sección
+              Text(
+                'MÓDULOS DE GESTIÓN OPERATIVA',
+                style: GoogleFonts.outfit(
+                  color: AppTheme.textGray,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 1.5,
                 ),
-                const SizedBox(height: 16),
+              ),
+              const SizedBox(height: 16),
 
-                // Grid de Accesos Rápidos
-                _buildModulesGrid(context, role, user.id),
-              ],
-            ),
+              // Grid de Accesos Rápidos
+              _buildModulesGrid(context, role, user.id),
+            ],
           ),
         ),
       ),
     );
+
+    final appBar = AppBar(
+      leading: isWeb
+          ? null
+          : Builder(
+              builder: (context) => IconButton(
+                icon: const Icon(Icons.menu_rounded, color: AppTheme.accentOrange, size: 28),
+                onPressed: () => Scaffold.of(context).openDrawer(),
+              ),
+            ),
+      title: Row(
+        children: [
+          Image.asset(
+            'assets/logo-validado.png',
+            height: 24,
+            fit: BoxFit.contain,
+            errorBuilder: (context, error, stackTrace) => const Icon(Icons.business, color: AppTheme.accentOrange),
+          ),
+          const SizedBox(width: 12),
+          Text(
+            'ALY INDUSTRIAL',
+            style: GoogleFonts.outfit(
+              fontSize: 14,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 1,
+              color: Colors.white,
+            ),
+          ),
+        ],
+      ),
+      backgroundColor: AppTheme.surfaceDark,
+      elevation: 0,
+      shape: Border(bottom: BorderSide(color: Colors.white.withOpacity(0.05), width: 1)),
+      centerTitle: false,
+      actions: [
+        const ConnectionStatusIndicator(),
+        const SizedBox(width: 8),
+        IconButton(
+          icon: const Icon(Icons.notifications_rounded, color: AppTheme.accentOrange, size: 24),
+          onPressed: () {
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(builder: (_) => const NotificationInboxScreen()),
+            );
+          },
+          tooltip: 'Ver Notificaciones',
+        ),
+        const SizedBox(width: 8),
+      ],
+    );
+
+    if (isWeb) {
+      return Scaffold(
+        backgroundColor: AppTheme.primaryDark,
+        body: Row(
+          children: [
+            const WebSidebar(currentRoute: 'home'),
+            Expanded(
+              child: Scaffold(
+                backgroundColor: Colors.transparent,
+                appBar: appBar,
+                body: mainContent,
+              ),
+            ),
+          ],
+        ),
+      );
+    } else {
+      return Scaffold(
+        backgroundColor: AppTheme.primaryDark,
+        drawer: const AppDrawer(currentRoute: 'home'),
+        appBar: appBar,
+        body: mainContent,
+      );
+    }
   }
 
   Widget _buildWelcomeBanner(String name, String role) {

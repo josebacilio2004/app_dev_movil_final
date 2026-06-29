@@ -17,10 +17,16 @@ import 'package:gestor_invetarios_pedidos_app/presentation/screens/sensor_level_
 import 'package:gestor_invetarios_pedidos_app/presentation/screens/ar_measurement_screen.dart';
 import 'package:gestor_invetarios_pedidos_app/presentation/screens/gemini_chat_screen.dart';
 
-class AppDrawer extends ConsumerWidget {
+class WebSidebar extends ConsumerWidget {
   final String currentRoute;
 
-  const AppDrawer({super.key, required this.currentRoute});
+  const WebSidebar({super.key, required this.currentRoute});
+
+  void _navigate(BuildContext context, Widget screen) {
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(builder: (_) => screen),
+    );
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -29,18 +35,22 @@ class AppDrawer extends ConsumerWidget {
 
     final String role = user.rol.toLowerCase();
 
-    return Drawer(
-      backgroundColor: AppTheme.primaryDark,
+    return Container(
+      width: 280,
+      decoration: BoxDecoration(
+        color: AppTheme.surfaceDark,
+        border: Border(right: BorderSide(color: Colors.white.withOpacity(0.05), width: 1)),
+      ),
       child: Column(
         children: [
-          // Header del Drawer
+          // Header del Sidebar con el logo validado
           Container(
-            padding: const EdgeInsets.fromLTRB(24, 60, 24, 30),
+            padding: const EdgeInsets.fromLTRB(24, 40, 24, 24),
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: [AppTheme.accentOrange.withOpacity(0.15), AppTheme.primaryDark],
+                colors: [AppTheme.accentOrange.withOpacity(0.1), Colors.transparent],
               ),
               border: Border(bottom: BorderSide(color: Colors.white.withOpacity(0.05), width: 1)),
             ),
@@ -50,13 +60,13 @@ class AppDrawer extends ConsumerWidget {
                   'assets/logo-validado.png',
                   height: 56,
                   fit: BoxFit.contain,
-                  errorBuilder: (context, error, stackTrace) => const Icon(Icons.business, color: AppTheme.accentOrange, size: 56),
+                  errorBuilder: (context, error, stackTrace) => const Icon(Icons.business, size: 56, color: AppTheme.accentOrange),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 12),
                 Text(
                   'ALY INDUSTRIAL',
                   style: GoogleFonts.outfit(
-                    fontSize: 16,
+                    fontSize: 15,
                     fontWeight: FontWeight.w900,
                     letterSpacing: 2,
                     color: Colors.white,
@@ -90,86 +100,84 @@ class AppDrawer extends ConsumerWidget {
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
               physics: const BouncingScrollPhysics(),
               children: [
-                _drawerItem(
+                _sidebarItem(
                   context,
                   label: 'INICIO',
                   icon: Icons.home_rounded,
                   isSelected: currentRoute == 'home',
                   onTap: () => _navigate(context, const HomeScreen()),
                 ),
-                _drawerItem(
+                _sidebarItem(
                   context,
                   label: 'CATÁLOGO DE PRODUCTOS',
                   icon: Icons.storefront_rounded,
                   isSelected: currentRoute == 'catalog',
                   onTap: () => _navigate(context, CatalogoScreen(userRole: role)),
                 ),
-                _drawerItem(
+                _sidebarItem(
                   context,
                   label: 'LOGÍSTICA DE ARRIBO (GPS)',
                   icon: Icons.explore_rounded,
                   isSelected: currentRoute == 'gps',
                   onTap: () => _navigate(context, MapaRutaScreen(usuarioId: user.id)),
                 ),
-                _drawerItem(
+                _sidebarItem(
                   context,
                   label: 'MIS BOLETAS / FACTURAS',
                   icon: Icons.receipt_long_rounded,
                   isSelected: currentRoute == 'invoices',
                   onTap: () => _navigate(context, const BoletasScreen()),
                 ),
-                _drawerItem(
+                _sidebarItem(
                   context,
                   label: 'SEGUIMIENTO DE DELIVERY',
                   icon: Icons.local_shipping_rounded,
                   isSelected: currentRoute == 'delivery_tracking',
                   onTap: () => _navigate(context, const SeguimientoDeliveryScreen()),
                 ),
-                _drawerItem(
+                _sidebarItem(
                   context,
                   label: 'NIVELADOR DIGITAL ALY',
                   icon: Icons.architecture_rounded,
                   isSelected: currentRoute == 'sensor_level',
                   onTap: () => _navigate(context, const SensorLevelScreen()),
                 ),
-                _drawerItem(
+                _sidebarItem(
                   context,
                   label: 'MEDIDOR LÁSER AR',
                   icon: Icons.photo_camera_rounded,
                   isSelected: currentRoute == 'ar_camera',
                   onTap: () => _navigate(context, const ArMeasurementScreen()),
                 ),
-                _drawerItem(
+                _sidebarItem(
                   context,
                   label: 'ASISTENTE TÉCNICO IA',
                   icon: Icons.chat_bubble_outline_rounded,
                   isSelected: currentRoute == 'gemini_chat',
                   onTap: () => _navigate(context, const GeminiChatScreen()),
                 ),
-                _drawerItem(
+                _sidebarItem(
                   context,
                   label: 'BANDEJA DE NOTIFICACIONES',
                   icon: Icons.notifications_rounded,
                   isSelected: currentRoute == 'notifications',
                   onTap: () => _navigate(context, const NotificationInboxScreen()),
                 ),
-                _drawerItem(
+                _sidebarItem(
                   context,
                   label: 'MIS PEDIDOS',
                   icon: Icons.assignment_rounded,
                   isSelected: currentRoute == 'orders',
                   onTap: () => _navigate(context, const OrderListScreen()),
                 ),
-                _drawerItem(
+                _sidebarItem(
                   context,
                   label: 'CONFIGURACIÓN',
                   icon: Icons.settings_rounded,
                   isSelected: currentRoute == 'settings',
                   onTap: () => _navigate(context, const SettingsScreen()),
                 ),
-                
-                // Mostrar Dashboard según rol (admin, operador, comprador, inversionista)
-                _drawerItem(
+                _sidebarItem(
                   context,
                   label: 'ESTADÍSTICAS (DASHBOARD)',
                   icon: Icons.analytics_rounded,
@@ -180,32 +188,75 @@ class AppDrawer extends ConsumerWidget {
             ),
           ),
 
-          // Botón de Cerrar Sesión
-          Padding(
-            padding: const EdgeInsets.all(24),
-            child: ElevatedButton.icon(
-              onPressed: () async {
-                await ref.read(authServiceProvider).signOut();
-                ref.read(authStateProvider.notifier).state = null;
-                if (context.mounted) {
-                  Navigator.of(context).pushAndRemoveUntil(
-                    MaterialPageRoute(builder: (_) => const LoginScreen()),
-                    (route) => false,
-                  );
-                }
-              },
-              icon: const Icon(Icons.logout_rounded, size: 18),
-              label: const Text('CERRAR SESIÓN', style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1)),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.redAccent.withOpacity(0.1),
-                foregroundColor: Colors.redAccent,
-                minimumSize: const Size(double.infinity, 50),
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  side: const BorderSide(color: Colors.redAccent, width: 1),
+          // Perfil de Usuario y Cerrar Sesión
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.black.withOpacity(0.1),
+              border: Border(top: BorderSide(color: Colors.white.withOpacity(0.05), width: 1)),
+            ),
+            child: Column(
+              children: [
+                Row(
+                  children: [
+                    CircleAvatar(
+                      backgroundColor: AppTheme.accentOrange.withOpacity(0.2),
+                      radius: 18,
+                      child: Text(
+                        user.nombre.substring(0, 1).toUpperCase(),
+                        style: const TextStyle(color: AppTheme.accentOrange, fontWeight: FontWeight.bold, fontSize: 14),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            user.nombre,
+                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          Text(
+                            user.usuario,
+                            style: const TextStyle(color: AppTheme.textGray, fontSize: 10),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-              ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  height: 36,
+                  child: ElevatedButton.icon(
+                    onPressed: () async {
+                      await ref.read(authServiceProvider).signOut();
+                      ref.read(authStateProvider.notifier).state = null;
+                      if (context.mounted) {
+                        Navigator.of(context).pushAndRemoveUntil(
+                          MaterialPageRoute(builder: (_) => const LoginScreen()),
+                          (route) => false,
+                        );
+                      }
+                    },
+                    icon: const Icon(Icons.logout_rounded, size: 14, color: Colors.white),
+                    label: const Text('CERRAR SESIÓN', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.redAccent.withOpacity(0.15),
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shadowColor: Colors.transparent,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      side: BorderSide(color: Colors.redAccent.withOpacity(0.3), width: 1),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -213,7 +264,7 @@ class AppDrawer extends ConsumerWidget {
     );
   }
 
-  Widget _drawerItem(
+  Widget _sidebarItem(
     BuildContext context, {
     required String label,
     required IconData icon,
@@ -221,38 +272,55 @@ class AppDrawer extends ConsumerWidget {
     required VoidCallback onTap,
   }) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      decoration: BoxDecoration(
-        color: isSelected ? AppTheme.accentOrange.withOpacity(0.1) : Colors.transparent,
-        borderRadius: BorderRadius.circular(12),
-        border: isSelected 
-            ? Border.all(color: AppTheme.accentOrange.withOpacity(0.2)) 
-            : Border.all(color: Colors.transparent),
-      ),
-      child: ListTile(
-        leading: Icon(
-          icon,
-          color: isSelected ? AppTheme.accentOrange : AppTheme.textGray,
-          size: 20,
-        ),
-        title: Text(
-          label,
-          style: GoogleFonts.outfit(
-            fontSize: 12,
-            fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
-            color: isSelected ? Colors.white : AppTheme.textGray,
-            letterSpacing: 0.5,
+      margin: const EdgeInsets.only(bottom: 4),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(10),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: isSelected ? AppTheme.accentOrange.withOpacity(0.12) : Colors.transparent,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                color: isSelected ? AppTheme.accentOrange.withOpacity(0.2) : Colors.transparent,
+                width: 1,
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  icon,
+                  size: 20,
+                  color: isSelected ? AppTheme.accentOrange : AppTheme.textGray,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    label,
+                    style: GoogleFonts.outfit(
+                      color: isSelected ? Colors.white : AppTheme.textGray,
+                      fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                      fontSize: 11,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ),
+                if (isSelected)
+                  Container(
+                    width: 6,
+                    height: 6,
+                    decoration: const BoxDecoration(
+                      color: AppTheme.accentOrange,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+              ],
+            ),
           ),
         ),
-        onTap: onTap,
       ),
-    );
-  }
-
-  void _navigate(BuildContext context, Widget targetScreen) {
-    Navigator.of(context).pop(); // Cerrar drawer
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (_) => targetScreen),
     );
   }
 }

@@ -35,7 +35,7 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildStatsGrid(),
+        _buildStatsGrid(context),
         const SizedBox(height: 32),
         const Text(
           'INTELIGENCIA DE NEGOCIO 📊',
@@ -98,14 +98,17 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
 
   // --- MÉTODOS DE LA UI ORIGINAL --- (Adaptados para interactividad)
 
-  Widget _buildStatsGrid() {
+  Widget _buildStatsGrid(BuildContext context) {
+    final double width = MediaQuery.of(context).size.width;
+    final bool isDesktop = width > 700;
+
     return GridView.count(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      crossAxisCount: 2,
+      crossAxisCount: isDesktop ? 4 : 2,
       crossAxisSpacing: 12,
       mainAxisSpacing: 12,
-      childAspectRatio: 1.6,
+      childAspectRatio: isDesktop ? 2.0 : 1.6,
       children: [
         _statCard('TOTAL PEDIDOS', '156', Icons.assignment_outlined, AppTheme.accentOrange),
         _statCard('PROD. ACTIVOS', '42', Icons.inventory_2_outlined, const Color(0xFF6366F1)),

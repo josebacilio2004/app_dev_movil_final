@@ -1,9 +1,11 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:gestor_invetarios_pedidos_app/core/theme/app_theme.dart';
 import 'package:gestor_invetarios_pedidos_app/data/services/gemini_service.dart';
 import 'package:gestor_invetarios_pedidos_app/presentation/widgets/common/app_drawer.dart';
 import 'package:gestor_invetarios_pedidos_app/presentation/widgets/common/glass_container.dart';
+import 'package:gestor_invetarios_pedidos_app/presentation/widgets/common/web_sidebar.dart';
 
 class GeminiChatScreen extends StatefulWidget {
   const GeminiChatScreen({super.key});
@@ -78,41 +80,72 @@ class _GeminiChatScreenState extends State<GeminiChatScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppTheme.primaryDark,
-      drawer: const AppDrawer(currentRoute: 'gemini_chat'),
-      appBar: AppBar(
-        title: Text(
-          'ASISTENTE TÉCNICO IA',
-          style: GoogleFonts.outfit(fontWeight: FontWeight.w900, fontSize: 13, letterSpacing: 1.5),
-        ),
-        leading: Builder(
-          builder: (context) => IconButton(
-            icon: const Icon(Icons.menu_rounded, color: AppTheme.accentOrange, size: 28),
-            onPressed: () => Scaffold.of(context).openDrawer(),
-          ),
-        ),
+    final bool isWeb = kIsWeb || MediaQuery.of(context).size.width >= 900;
+
+    final appBar = AppBar(
+      title: Text(
+        'ASISTENTE TÉCNICO IA',
+        style: GoogleFonts.outfit(fontWeight: FontWeight.w900, fontSize: 13, letterSpacing: 1.5),
       ),
-      body: Column(
-        children: [
-          // Banner Superior
-          _buildBanner(),
+      leading: isWeb
+          ? null
+          : Builder(
+              builder: (context) => IconButton(
+                icon: const Icon(Icons.menu_rounded, color: AppTheme.accentOrange, size: 28),
+                onPressed: () => Scaffold.of(context).openDrawer(),
+              ),
+            ),
+    );
 
-          // Zona de Mensajes
-          Expanded(
-            child: _messages.isEmpty 
-                ? _buildWelcomeState() 
-                : _buildMessageList(),
-          ),
+    final mainContent = Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 800),
+        child: Column(
+          children: [
+            // Banner Superior
+            _buildBanner(),
 
-          // Cargador IA escribiendo
-          if (_isLoading) _buildWritingIndicator(),
+            // Zona de Mensajes
+            Expanded(
+              child: _messages.isEmpty 
+                  ? _buildWelcomeState() 
+                  : _buildMessageList(),
+            ),
 
-          // Input de Mensaje
-          _buildInputBar(),
-        ],
+            // Cargador IA escribiendo
+            if (_isLoading) _buildWritingIndicator(),
+
+            // Input de Mensaje
+            _buildInputBar(),
+          ],
+        ),
       ),
     );
+
+    if (isWeb) {
+      return Scaffold(
+        backgroundColor: AppTheme.primaryDark,
+        body: Row(
+          children: [
+            const WebSidebar(currentRoute: 'gemini_chat'),
+            Expanded(
+              child: Scaffold(
+                backgroundColor: Colors.transparent,
+                appBar: appBar,
+                body: mainContent,
+              ),
+            ),
+          ],
+        ),
+      );
+    } else {
+      return Scaffold(
+        backgroundColor: AppTheme.primaryDark,
+        drawer: const AppDrawer(currentRoute: 'gemini_chat'),
+        appBar: appBar,
+        body: mainContent,
+      );
+    }
   }
 
   Widget _buildBanner() {

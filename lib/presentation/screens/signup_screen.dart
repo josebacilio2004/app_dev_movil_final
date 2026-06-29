@@ -135,17 +135,20 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppTheme.primaryDark,
-      body: Container(
-        width: double.infinity,
-        height: double.infinity,
-        decoration: const BoxDecoration(
-          color: AppTheme.primaryDark,
-        ),
-        child: SingleChildScrollView(
-          physics: const BouncingScrollPhysics(),
-          child: Column(
-            children: [
-              _buildTopBranding(),
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 480),
+          child: Container(
+            width: double.infinity,
+            height: double.infinity,
+            decoration: const BoxDecoration(
+              color: AppTheme.primaryDark,
+            ),
+            child: SingleChildScrollView(
+              physics: const BouncingScrollPhysics(),
+              child: Column(
+                children: [
+                  _buildTopBranding(),
               Padding(
                 padding: const EdgeInsets.all(24),
                 child: Form(
@@ -336,12 +339,14 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                     ],
                   ),
                 ),
-              )
+              ),
             ],
           ),
         ),
       ),
-    );
+    ),
+  ),
+);
   }
 
   Widget _buildTopBranding() {
@@ -355,18 +360,11 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
       ),
       child: Column(
         children: [
-          ColorFiltered(
-            colorFilter: const ColorFilter.matrix([
-              1, 0, 0, 0, 0,
-              0, 1, 0, 0, 0,
-              0, 0, 1, 0, 0,
-              -1, -1, -1, 1, 255,
-            ]),
-            child: Image.asset(
-              'assets/logo_premium.png',
-              height: 60,
-              errorBuilder: (context, error, stackTrace) => const Icon(Icons.business, size: 50, color: AppTheme.accentOrange),
-            ),
+          Image.asset(
+            'assets/logo-validado.png',
+            height: 60,
+            fit: BoxFit.contain,
+            errorBuilder: (context, error, stackTrace) => const Icon(Icons.business, size: 50, color: AppTheme.accentOrange),
           ),
           const SizedBox(height: 12),
           const Text(

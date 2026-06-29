@@ -22,7 +22,7 @@ class InvestorDashboard extends ConsumerWidget {
     switch (currentSection) {
       case InvestorSection.inventoryManager:
       case InvestorSection.dashboard:
-        return _buildDashboardView(ref);
+        return _buildDashboardView(context, ref);
       case InvestorSection.orders:
         return _buildOrdersView(ref);
       case InvestorSection.products:
@@ -32,19 +32,19 @@ class InvestorDashboard extends ConsumerWidget {
       case InvestorSection.buyers:
         return _buildBuyersView(ref);
       default:
-        return _buildDashboardView(ref);
+        return _buildDashboardView(context, ref);
     }
   }
 
   // ─── VISTA: DASHBOARD / GESTOR DE INVENTARIO ───
-  Widget _buildDashboardView(WidgetRef ref) {
+  Widget _buildDashboardView(BuildContext context, WidgetRef ref) {
     final ordersAsync = ref.watch(ordersFutureProvider);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         ordersAsync.when(
-          data: (orders) => _buildStatsGrid(orders),
+          data: (orders) => _buildStatsGrid(context, orders),
           loading: () => const LinearProgressIndicator(),
           error: (e, _) => const SizedBox(),
         ),
@@ -66,7 +66,7 @@ class InvestorDashboard extends ConsumerWidget {
     );
   }
 
-  Widget _buildStatsGrid(List<Map<String, dynamic>> orders) {
+  Widget _buildStatsGrid(BuildContext context, List<Map<String, dynamic>> orders) {
     double totalInvertido = 0;
     double devuelto = 0;
     double ganDevuelta = 0;
@@ -92,13 +92,16 @@ class InvestorDashboard extends ConsumerWidget {
     final ganPendiente = ganEsp - ganDevuelta;
     final percDevolucion = totalInvertido > 0 ? (devuelto / totalInvertido) * 100 : 0.0;
 
+    final double width = MediaQuery.of(context).size.width;
+    final bool isDesktop = width > 700;
+
     return GridView.count(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      crossAxisCount: 2,
+      crossAxisCount: isDesktop ? 4 : 2,
       crossAxisSpacing: 12,
       mainAxisSpacing: 12,
-      childAspectRatio: 1.8,
+      childAspectRatio: isDesktop ? 2.0 : 1.8,
       children: [
         _statCard('CAPITAL TOTAL INVERTIDO', 'S/ ${totalInvertido.toStringAsFixed(2)}', AppTheme.accentOrange),
         _statCard('CAPITAL DEVUELTO', 'S/ ${devuelto.toStringAsFixed(2)}', AppTheme.successGreen),

@@ -225,19 +225,25 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        width: double.infinity,
-        height: double.infinity,
-        decoration: const BoxDecoration(
-          color: AppTheme.primaryDark,
-        ),
-        child: SingleChildScrollView(
-          physics: const BouncingScrollPhysics(),
-          child: Column(
-            children: [
-              _buildTopBranding(),
-              _buildLoginForm(),
-            ],
+      backgroundColor: AppTheme.primaryDark,
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 480),
+          child: Container(
+            width: double.infinity,
+            height: double.infinity,
+            decoration: const BoxDecoration(
+              color: AppTheme.primaryDark,
+            ),
+            child: SingleChildScrollView(
+              physics: const BouncingScrollPhysics(),
+              child: Column(
+                children: [
+                  _buildTopBranding(),
+                  _buildLoginForm(),
+                ],
+              ),
+            ),
           ),
         ),
       ),
@@ -256,10 +262,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       child: Column(
         children: [
           Image.asset(
-            'assets/logo_premium.png',
+            'assets/logo-validado.png',
             height: 80,
-            color: AppTheme.accentOrange,
-            colorBlendMode: BlendMode.srcIn,
+            fit: BoxFit.contain,
             errorBuilder: (context, error, stackTrace) => const Icon(Icons.business, size: 60, color: AppTheme.accentOrange),
           ),
           const SizedBox(height: 24),

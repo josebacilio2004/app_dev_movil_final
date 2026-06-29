@@ -84,23 +84,28 @@ class CartScreen extends ConsumerWidget {
         ],
         shape: Border(bottom: BorderSide(color: Colors.white.withOpacity(0.05), width: 1)),
       ),
-      body: cartItems.isEmpty
-          ? _buildEmptyState(context)
-          : Column(
-              children: [
-                Expanded(
-                  child: ListView.builder(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    itemCount: cartItems.length,
-                    itemBuilder: (context, index) {
-                      final item = cartItems[index];
-                      return _buildCartItemCard(context, ref, item);
-                    },
-                  ),
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 800),
+          child: cartItems.isEmpty
+              ? _buildEmptyState(context)
+              : Column(
+                  children: [
+                    Expanded(
+                      child: ListView.builder(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        itemCount: cartItems.length,
+                        itemBuilder: (context, index) {
+                          final item = cartItems[index];
+                          return _buildCartItemCard(context, ref, item);
+                        },
+                      ),
+                    ),
+                    _buildSummarySection(context, ref, totalUnitario, totalMayorista, savings),
+                  ],
                 ),
-                _buildSummarySection(context, ref, totalUnitario, totalMayorista, savings),
-              ],
-            ),
+        ),
+      ),
     );
   }
 

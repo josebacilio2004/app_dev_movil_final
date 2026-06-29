@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:math';
+import 'dart:typed_data';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -9,6 +10,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:sensors_plus/sensors_plus.dart';
 import 'package:gestor_invetarios_pedidos_app/core/theme/app_theme.dart';
 import 'package:gestor_invetarios_pedidos_app/presentation/widgets/common/app_drawer.dart';
+import 'package:gestor_invetarios_pedidos_app/presentation/widgets/common/web_sidebar.dart';
 
 class ArMeasurementScreen extends StatefulWidget {
   const ArMeasurementScreen({super.key});
@@ -20,6 +22,7 @@ class ArMeasurementScreen extends StatefulWidget {
 class _ArMeasurementScreenState extends State<ArMeasurementScreen> {
   StreamSubscription? _accelerometerSubscription;
   File? _backgroundImage;
+  Uint8List? _webImageBytes;
   final ImagePicker _picker = ImagePicker();
 
   // Ángulos calculados
@@ -163,11 +166,22 @@ class _ArMeasurementScreenState extends State<ArMeasurementScreen> {
         source: source!,
         maxWidth: 1080,
         maxHeight: 1920,
+        imageQuality: 85,
+        preferredCameraDevice: CameraDevice.rear,
       );
       if (file != null) {
-        setState(() {
-          _backgroundImage = File(file.path);
-        });
+        if (kIsWeb) {
+          final bytes = await file.readAsBytes();
+          setState(() {
+            _webImageBytes = bytes;
+            _backgroundImage = null;
+          });
+        } else {
+          setState(() {
+            _backgroundImage = File(file.path);
+            _webImageBytes = null;
+          });
+        }
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -200,64 +214,96 @@ class _ArMeasurementScreenState extends State<ArMeasurementScreen> {
   Widget build(BuildContext context) {
     final laserColor = _isAligned ? AppTheme.successGreen : AppTheme.errorRed;
     final currentProdData = _products.firstWhere((p) => p['name'] == _selectedProduct);
+    final bool isWeb = kIsWeb || MediaQuery.of(context).size.width >= 900;
 
-    return Scaffold(
-      backgroundColor: AppTheme.primaryDark,
-      drawer: const AppDrawer(currentRoute: 'ar_camera'),
-      appBar: AppBar(
-        title: Text(
-          'MEDIDOR LÁSER AR & PROYECCIÓN',
-          style: GoogleFonts.outfit(fontWeight: FontWeight.w900, fontSize: 13, letterSpacing: 1.5),
-        ),
-        leading: Builder(
-          builder: (context) => IconButton(
-            icon: const Icon(Icons.menu_rounded, color: AppTheme.accentOrange, size: 28),
-            onPressed: () => Scaffold.of(context).openDrawer(),
-          ),
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.flip_camera_ios_rounded, color: AppTheme.accentOrange),
-            onPressed: _pickCameraBackground,
-            tooltip: 'Capturar Fondo de Obra',
-          ),
-        ],
+    final appBar = AppBar(
+      title: Text(
+        'MEDIDOR LÁSER AR & PROYECCIÓN',
+        style: GoogleFonts.outfit(fontWeight: FontWeight.w900, fontSize: 13, letterSpacing: 1.5),
       ),
-      body: Stack(
-        fit: StackFit.expand,
-        children: [
-          // 1. Fondo de la cámara (Imagen real cargada o Simulación High-Tech Blueprint)
-          _backgroundImage != null && !kIsWeb
-              ? Image.file(
-                  _backgroundImage!,
-                  fit: BoxFit.cover,
-                )
-              : _buildSimulatedCameraBackground(),
-
-          // 2. Líneas láser virtuales (Horizontal y Vertical)
-          _buildVirtualLaserLines(laserColor),
-
-          // 3. Herramienta industrial proyectada y arrastrable (AR Layer)
-          _buildProjectedToolLayer(currentProdData),
-
-          // 4. Panel superior de Lectura de Ángulos y Estado
-          Positioned(
-            top: 16,
-            left: 16,
-            right: 16,
-            child: _buildAngleOverlayPanel(laserColor),
-          ),
-
-          // 5. Panel inferior de Controles de Proyección y selección de producto
-          Positioned(
-            bottom: 16,
-            left: 16,
-            right: 16,
-            child: _buildControlPanel(currentProdData),
-          ),
-        ],
-      ),
+      leading: isWeb
+          ? null
+          : Builder(
+              builder: (context) => IconButton(
+                icon: const Icon(Icons.menu_rounded, color: AppTheme.accentOrange, size: 28),
+                onPressed: () => Scaffold.of(context).openDrawer(),
+              ),
+            ),
+      actions: [
+        IconButton(
+          icon: const Icon(Icons.flip_camera_ios_rounded, color: AppTheme.accentOrange),
+          onPressed: _pickCameraBackground,
+          tooltip: 'Capturar Fondo de Obra',
+        ),
+      ],
     );
+
+    final mainContent = Stack(
+      fit: StackFit.expand,
+      children: [
+        // 1. Fondo de la cámara (Imagen real cargada o Simulación High-Tech Blueprint)
+        kIsWeb
+            ? (_webImageBytes != null
+                ? Image.memory(
+                    _webImageBytes!,
+                    fit: BoxFit.cover,
+                  )
+                : _buildSimulatedCameraBackground())
+            : (_backgroundImage != null
+                ? Image.file(
+                    _backgroundImage!,
+                    fit: BoxFit.cover,
+                  )
+                : _buildSimulatedCameraBackground()),
+
+        // 2. Líneas láser virtuales (Horizontal y Vertical)
+        _buildVirtualLaserLines(laserColor),
+
+        // 3. Herramienta industrial proyectada y arrastrable (AR Layer)
+        _buildProjectedToolLayer(currentProdData),
+
+        // 4. Panel superior de Lectura de Ángulos y Estado
+        Positioned(
+          top: 16,
+          left: 16,
+          right: 16,
+          child: _buildAngleOverlayPanel(laserColor),
+        ),
+
+        // 5. Panel inferior de Controles de Proyección y selección de producto
+        Positioned(
+          bottom: 16,
+          left: 16,
+          right: 16,
+          child: _buildControlPanel(currentProdData),
+        ),
+      ],
+    );
+
+    if (isWeb) {
+      return Scaffold(
+        backgroundColor: AppTheme.primaryDark,
+        body: Row(
+          children: [
+            const WebSidebar(currentRoute: 'ar_camera'),
+            Expanded(
+              child: Scaffold(
+                backgroundColor: Colors.transparent,
+                appBar: appBar,
+                body: mainContent,
+              ),
+            ),
+          ],
+        ),
+      );
+    } else {
+      return Scaffold(
+        backgroundColor: AppTheme.primaryDark,
+        drawer: const AppDrawer(currentRoute: 'ar_camera'),
+        appBar: appBar,
+        body: mainContent,
+      );
+    }
   }
 
   Widget _buildSimulatedCameraBackground() {

@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -25,6 +26,13 @@ class _MisFacturasScreenState extends State<MisFacturasScreen> {
 
   Future<void> _loadPdfs() async {
     setState(() => _isLoading = true);
+    if (kIsWeb) {
+      setState(() {
+        _pdfFiles = [];
+        _isLoading = false;
+      });
+      return;
+    }
     try {
       final directory = await getApplicationDocumentsDirectory();
       final files = directory.listSync();
@@ -130,21 +138,31 @@ class _MisFacturasScreenState extends State<MisFacturasScreen> {
   
   Widget _buildEmptyState() {
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.receipt_long_rounded, size: 64, color: AppTheme.textGray.withOpacity(0.3)),
-          const SizedBox(height: 16),
-          const Text(
-            'No hay facturas',
-            style: TextStyle(color: AppTheme.textGray, fontSize: 16, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'Las compras que realices aparecerán aquí',
-            style: TextStyle(color: AppTheme.textGray, fontSize: 12),
-          ),
-        ],
+      child: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              kIsWeb ? Icons.cloud_download_rounded : Icons.receipt_long_rounded, 
+              size: 64, 
+              color: AppTheme.textGray.withOpacity(0.3)
+            ),
+            const SizedBox(height: 16),
+            Text(
+              kIsWeb ? 'Descargas en la Web' : 'No hay facturas',
+              style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              kIsWeb 
+                  ? 'En la plataforma web, los comprobantes en PDF se descargan directamente a tu carpeta local de descargas del navegador cuando finalizas una compra.'
+                  : 'Las compras que realices aparecerán aquí',
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: AppTheme.textGray, fontSize: 12),
+            ),
+          ],
+        ),
       ),
     );
   }

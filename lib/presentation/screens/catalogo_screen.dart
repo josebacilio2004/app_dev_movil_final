@@ -18,6 +18,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'dart:math';
 import 'package:sensors_plus/sensors_plus.dart';
+import 'package:gestor_invetarios_pedidos_app/presentation/widgets/common/web_sidebar.dart';
 
 class CatalogoScreen extends ConsumerStatefulWidget {
   final String userRole;
@@ -348,149 +349,187 @@ class _CatalogoScreenState extends ConsumerState<CatalogoScreen> with SingleTick
     final precioMin = ref.watch(precioMinProvider);
     final precioMax = ref.watch(precioMaxProvider);
     final isFilterActive = query.isNotEmpty || selectedCategory != null || selectedBrand != null || precioMin > 0 || precioMax < 999999;
+    final bool isWeb = kIsWeb || MediaQuery.of(context).size.width >= 900;
 
-    return Scaffold(
-      backgroundColor: AppTheme.primaryDark,
-      drawer: const AppDrawer(currentRoute: 'catalog'),
-      floatingActionButton: widget.userRole == 'admin'
-          ? FloatingActionButton(
-              backgroundColor: AppTheme.accentOrange,
-              foregroundColor: Colors.white,
-              child: const Icon(Icons.add_rounded),
-              onPressed: () => _openAddEditProductDialog(),
-            )
-          : null,
-      appBar: AppBar(
-        backgroundColor: AppTheme.surfaceDark,
-        elevation: 0,
-        leading: Builder(
-          builder: (context) => IconButton(
-            icon: const Icon(Icons.menu_rounded, color: AppTheme.accentOrange, size: 28),
-            onPressed: () => Scaffold.of(context).openDrawer(),
-          ),
-        ),
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'CATÁLOGO DE PRODUCTOS',
-              style: TextStyle(fontWeight: FontWeight.w900, fontSize: 14, letterSpacing: 1.5),
+    final appBar = AppBar(
+      backgroundColor: AppTheme.surfaceDark,
+      elevation: 0,
+      leading: isWeb
+          ? null
+          : Builder(
+              builder: (context) => IconButton(
+                icon: const Icon(Icons.menu_rounded, color: AppTheme.accentOrange, size: 28),
+                onPressed: () => Scaffold.of(context).openDrawer(),
+              ),
             ),
-            Text(
-              query.isEmpty && selectedCategory == null
-                  ? '$totalCount productos disponibles'
-                  : '$resultCount de $totalCount resultados',
-              style: const TextStyle(color: AppTheme.textGray, fontSize: 10, letterSpacing: 0.5),
+      title: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'CATÁLOGO DE PRODUCTOS',
+            style: TextStyle(fontWeight: FontWeight.w900, fontSize: 14, letterSpacing: 1.5),
+          ),
+          Text(
+            query.isEmpty && selectedCategory == null
+                ? '$totalCount productos disponibles'
+                : '$resultCount de $totalCount resultados',
+            style: const TextStyle(color: AppTheme.textGray, fontSize: 10, letterSpacing: 0.5),
+          ),
+        ],
+      ),
+      actions: [
+        IconButton(
+          icon: Badge(
+            label: Text(
+              '${ref.watch(cartCountProvider)}',
+              style: const TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.bold),
+            ),
+            isLabelVisible: ref.watch(cartCountProvider) > 0,
+            backgroundColor: AppTheme.accentOrange,
+            child: const Icon(
+              Icons.shopping_cart_rounded,
+              size: 22,
+            ),
+          ),
+          onPressed: () {
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (context) => const CartScreen(),
+              ),
+            );
+          },
+          tooltip: 'Ver Carrito',
+        ),
+        IconButton(
+          icon: Icon(
+            _isGridView ? Icons.view_list_rounded : Icons.grid_view_rounded,
+            size: 22,
+          ),
+          onPressed: () {
+            setState(() {
+              _isGridView = !_isGridView;
+            });
+          },
+          tooltip: _isGridView ? 'Ver como lista' : 'Ver como cuadrícula',
+        ),
+        IconButton(
+          icon: Badge(
+            isLabelVisible: isFilterActive,
+            backgroundColor: AppTheme.accentOrange,
+            smallSize: 8,
+            child: Icon(
+              _showFilters ? Icons.filter_list_off_rounded : Icons.filter_list_rounded,
+              size: 22,
+            ),
+          ),
+          onPressed: _toggleFilters,
+        ),
+        if (isFilterActive)
+          IconButton(
+            icon: const Icon(Icons.clear_all_rounded, size: 22),
+            onPressed: _clearFilters,
+            tooltip: 'Limpiar filtros',
+          ),
+      ],
+    );
+
+    final mainContent = Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 1200),
+        child: Column(
+          children: [
+            // === BARRA DE CONECTIVIDAD OFF-LINE ===
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 300),
+              height: _isOffline ? 36 : 0,
+              width: double.infinity,
+              color: AppTheme.errorRed.withOpacity(0.9),
+              alignment: Alignment.center,
+              child: _isOffline
+                  ? const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.wifi_off_rounded, color: Colors.white, size: 16),
+                        SizedBox(width: 8),
+                        Text(
+                          'Modo Offline Activo - Cargando datos locales desde caché',
+                          style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                        ),
+                      ],
+                    )
+                  : const SizedBox(),
+            ),
+            // === BARRA DE BÚSQUEDA ===
+            _buildSearchBar(),
+            // === FILTROS EXPANDIBLES ===
+            SizeTransition(
+              sizeFactor: _filterAnimation,
+              child: _buildFilterSection(),
+            ),
+            // === CHIPS DE CATEGORÍA RÁPIDOS ===
+            _buildCategoryChips(),
+            // === LISTA DE RESULTADOS ===
+            Expanded(
+              child: ref.watch(catalogoStreamProvider).when(
+                data: (_) {
+                  return results.isEmpty
+                      ? _buildEmptyState(query)
+                      : _buildProductGrid(results);
+                },
+                loading: () => _buildShimmerGrid(),
+                error: (err, stack) => Center(
+                  child: Text(
+                    'Error al cargar catálogo: $err',
+                    style: const TextStyle(color: AppTheme.errorRed),
+                  ),
+                ),
+              ),
             ),
           ],
         ),
-        actions: [
-          IconButton(
-            icon: Badge(
-              label: Text(
-                '${ref.watch(cartCountProvider)}',
-                style: const TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.bold),
-              ),
-              isLabelVisible: ref.watch(cartCountProvider) > 0,
-              backgroundColor: AppTheme.accentOrange,
-              child: const Icon(
-                Icons.shopping_cart_rounded,
-                size: 22,
-              ),
-            ),
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (context) => const CartScreen(),
-                ),
-              );
-            },
-            tooltip: 'Ver Carrito',
-          ),
-          IconButton(
-            icon: Icon(
-              _isGridView ? Icons.view_list_rounded : Icons.grid_view_rounded,
-              size: 22,
-            ),
-            onPressed: () {
-              setState(() {
-                _isGridView = !_isGridView;
-              });
-            },
-            tooltip: _isGridView ? 'Ver como lista' : 'Ver como cuadrícula',
-          ),
-          IconButton(
-            icon: Badge(
-              isLabelVisible: isFilterActive,
-              backgroundColor: AppTheme.accentOrange,
-              smallSize: 8,
-              child: Icon(
-                _showFilters ? Icons.filter_list_off_rounded : Icons.filter_list_rounded,
-                size: 22,
-              ),
-            ),
-            onPressed: _toggleFilters,
-          ),
-          if (isFilterActive)
-            IconButton(
-              icon: const Icon(Icons.clear_all_rounded, size: 22),
-              onPressed: _clearFilters,
-              tooltip: 'Limpiar filtros',
-            ),
-        ],
-      ),
-      body: Column(
-        children: [
-          // === BARRA DE CONECTIVIDAD OFF-LINE ===
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 300),
-            height: _isOffline ? 36 : 0,
-            width: double.infinity,
-            color: AppTheme.errorRed.withOpacity(0.9),
-            alignment: Alignment.center,
-            child: _isOffline
-                ? const Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.wifi_off_rounded, color: Colors.white, size: 16),
-                      SizedBox(width: 8),
-                      Text(
-                        'Modo Offline Activo - Cargando datos locales desde caché',
-                        style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
-                      ),
-                    ],
-                  )
-                : const SizedBox(),
-          ),
-          // === BARRA DE BÚSQUEDA ===
-          _buildSearchBar(),
-          // === FILTROS EXPANDIBLES ===
-          SizeTransition(
-            sizeFactor: _filterAnimation,
-            child: _buildFilterSection(),
-          ),
-          // === CHIPS DE CATEGORÍA RÁPIDOS ===
-          _buildCategoryChips(),
-          // === LISTA DE RESULTADOS ===
-          Expanded(
-            child: ref.watch(catalogoStreamProvider).when(
-              data: (_) {
-                return results.isEmpty
-                    ? _buildEmptyState(query)
-                    : _buildProductGrid(results);
-              },
-              loading: () => _buildShimmerGrid(),
-              error: (err, stack) => Center(
-                child: Text(
-                  'Error al cargar catálogo: $err',
-                  style: const TextStyle(color: AppTheme.errorRed),
-                ),
-              ),
-            ),
-          ),
-        ],
       ),
     );
+
+    if (isWeb) {
+      return Scaffold(
+        backgroundColor: AppTheme.primaryDark,
+        floatingActionButton: widget.userRole == 'admin'
+            ? FloatingActionButton(
+                backgroundColor: AppTheme.accentOrange,
+                foregroundColor: Colors.white,
+                child: const Icon(Icons.add_rounded),
+                onPressed: () => _openAddEditProductDialog(),
+              )
+            : null,
+        body: Row(
+          children: [
+            const WebSidebar(currentRoute: 'catalog'),
+            Expanded(
+              child: Scaffold(
+                backgroundColor: Colors.transparent,
+                appBar: appBar,
+                body: mainContent,
+              ),
+            ),
+          ],
+        ),
+      );
+    } else {
+      return Scaffold(
+        backgroundColor: AppTheme.primaryDark,
+        drawer: const AppDrawer(currentRoute: 'catalog'),
+        floatingActionButton: widget.userRole == 'admin'
+            ? FloatingActionButton(
+                backgroundColor: AppTheme.accentOrange,
+                foregroundColor: Colors.white,
+                child: const Icon(Icons.add_rounded),
+                onPressed: () => _openAddEditProductDialog(),
+              )
+            : null,
+        appBar: appBar,
+        body: mainContent,
+      );
+    }
   }
 
   Widget _buildSearchBar() {
@@ -763,13 +802,34 @@ class _CatalogoScreenState extends ConsumerState<CatalogoScreen> with SingleTick
 
   Widget _buildProductGrid(List<CatalogoProducto> productos) {
     if (_isGridView) {
+      final screenWidth = MediaQuery.of(context).size.width;
+      int crossAxisCount = 2;
+      double childAspectRatio = 0.54;
+
+      if (screenWidth >= 1400) {
+        crossAxisCount = 6;
+        childAspectRatio = 0.72;
+      } else if (screenWidth >= 1100) {
+        crossAxisCount = 5;
+        childAspectRatio = 0.68;
+      } else if (screenWidth >= 850) {
+        crossAxisCount = 4;
+        childAspectRatio = 0.64;
+      } else if (screenWidth >= 600) {
+        crossAxisCount = 3;
+        childAspectRatio = 0.60;
+      } else {
+        crossAxisCount = 2;
+        childAspectRatio = 0.54;
+      }
+
       return GridView.builder(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 2,
+        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: crossAxisCount,
           crossAxisSpacing: 12,
           mainAxisSpacing: 12,
-          childAspectRatio: 0.54,
+          childAspectRatio: childAspectRatio,
         ),
         itemCount: productos.length,
         itemBuilder: (context, index) {
@@ -1634,25 +1694,48 @@ class _CatalogoScreenState extends ConsumerState<CatalogoScreen> with SingleTick
   }
 
   Widget _buildShimmerGrid() {
-    return _isGridView
-        ? GridView.builder(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-            physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              crossAxisSpacing: 12,
-              mainAxisSpacing: 12,
-              childAspectRatio: 0.54,
-            ),
-            itemCount: 6,
-            itemBuilder: (context, index) => _buildShimmerCard(),
-          )
-        : ListView.builder(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: 4,
-            itemBuilder: (context, index) => _buildShimmerListCard(),
-          );
+    if (_isGridView) {
+      final screenWidth = MediaQuery.of(context).size.width;
+      int crossAxisCount = 2;
+      double childAspectRatio = 0.54;
+
+      if (screenWidth >= 1400) {
+        crossAxisCount = 6;
+        childAspectRatio = 0.72;
+      } else if (screenWidth >= 1100) {
+        crossAxisCount = 5;
+        childAspectRatio = 0.68;
+      } else if (screenWidth >= 850) {
+        crossAxisCount = 4;
+        childAspectRatio = 0.64;
+      } else if (screenWidth >= 600) {
+        crossAxisCount = 3;
+        childAspectRatio = 0.60;
+      } else {
+        crossAxisCount = 2;
+        childAspectRatio = 0.54;
+      }
+
+      return GridView.builder(
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+        physics: const NeverScrollableScrollPhysics(),
+        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: crossAxisCount,
+          crossAxisSpacing: 12,
+          mainAxisSpacing: 12,
+          childAspectRatio: childAspectRatio,
+        ),
+        itemCount: 6,
+        itemBuilder: (context, index) => _buildShimmerCard(),
+      );
+    } else {
+      return ListView.builder(
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+        physics: const NeverScrollableScrollPhysics(),
+        itemCount: 4,
+        itemBuilder: (context, index) => _buildShimmerListCard(),
+      );
+    }
   }
 
   Widget _buildShimmerCard() {
