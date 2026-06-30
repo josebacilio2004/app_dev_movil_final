@@ -7,6 +7,8 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:gestor_invetarios_pedidos_app/core/theme/app_theme.dart';
 import 'package:gestor_invetarios_pedidos_app/core/services/notification_service.dart';
 import 'package:gestor_invetarios_pedidos_app/data/services/geolocalizacion_service.dart';
@@ -14,7 +16,22 @@ import 'package:gestor_invetarios_pedidos_app/data/models/ruta_model.dart';
 import 'package:gestor_invetarios_pedidos_app/presentation/widgets/common/app_drawer.dart';
 
 class SeguimientoDeliveryScreen extends StatefulWidget {
-  const SeguimientoDeliveryScreen({super.key});
+  final String? polyline;
+  final double? destinoLat;
+  final double? destinoLng;
+  final String? distancia;
+  final String? duracion;
+  final String? orderId;
+
+  const SeguimientoDeliveryScreen({
+    super.key,
+    this.polyline,
+    this.destinoLat,
+    this.destinoLng,
+    this.distancia,
+    this.duracion,
+    this.orderId,
+  });
 
   @override
   State<SeguimientoDeliveryScreen> createState() => _SeguimientoDeliveryScreenState();
@@ -61,49 +78,120 @@ class _SeguimientoDeliveryScreenState extends State<SeguimientoDeliveryScreen> {
   }
 
   Future<void> _initTracking() async {
-    // 1. Intentar obtener coordenadas del comprador
-    try {
-      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-      LocationPermission permission = await Geolocator.checkPermission();
-      
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-      }
-      
-      if (serviceEnabled && (permission == LocationPermission.always || permission == LocationPermission.whileInUse)) {
-        final pos = await Geolocator.getCurrentPosition(
-          desiredAccuracy: LocationAccuracy.medium,
-          timeLimit: const Duration(seconds: 3),
+    // 1. Check if constructor passed destination and polyline
+    if (widget.destinoLat != null && widget.destinoLng != null) {
+      _userLocation = LatLng(widget.destinoLat!, widget.destinoLng!);
+      if (widget.polyline != null && widget.polyline!.isNotEmpty) {
+        _routePoints = _decodePolyline(widget.polyline!);
+        _ruta = RutaModel(
+          id: 'delivery_route',
+          origenLat: _tiendaLocation.latitude,
+          origenLng: _tiendaLocation.longitude,
+          destinoLat: widget.destinoLat!,
+          destinoLng: widget.destinoLng!,
+          distancia: widget.distancia ?? '3.5 km',
+          duracion: widget.duracion ?? '12 min',
+          polyline: widget.polyline!,
+          fechaConsulta: DateTime.now(),
+          tipo: 'tienda_a_usuario',
         );
-        _userLocation = LatLng(pos.latitude, pos.longitude);
       }
-    } catch (e) {
-      debugPrint('Geolocator error or timeout: $e');
     }
 
-    // Fallback si no hay GPS/permisos (ej. en web o emulador sin geolocalización activa)
-    // Trazaremos una dirección real en Huancayo
+    // 2. If still null, try to load the most recent pending order from Firestore
+    if (_userLocation == null) {
+      try {
+        final firestore = FirebaseFirestore.instance;
+        final currentUser = FirebaseAuth.instance.currentUser;
+        if (currentUser != null) {
+          final orderSnap = await firestore
+              .collection('pedidos')
+              .where('comprador_id', isEqualTo: currentUser.uid)
+              .where('estado', isEqualTo: 'pendiente')
+              .orderBy('fecha_pedido', descending: true)
+              .limit(1)
+              .get();
+          
+          if (orderSnap.docs.isNotEmpty) {
+            final doc = orderSnap.docs.first;
+            final orderData = doc.data();
+            final String? coordsStr = orderData['coordenadas_gps']?.toString();
+            if (coordsStr != null && coordsStr.contains(',')) {
+              final parts = coordsStr.split(',');
+              final lat = double.tryParse(parts[0]);
+              final lng = double.tryParse(parts[1]);
+              if (lat != null && lng != null) {
+                _userLocation = LatLng(lat, lng);
+                
+                // Fetch the route calculated for this coordinates
+                final route = await _geoService.obtenerRuta(
+                  origenLat: _tiendaLocation.latitude,
+                  origenLng: _tiendaLocation.longitude,
+                  destinoLat: lat,
+                  destinoLng: lng,
+                  tipo: 'tienda_a_usuario',
+                  usuarioId: currentUser.uid,
+                );
+                
+                if (route != null) {
+                  _ruta = route;
+                  _routePoints = _decodePolyline(route.polyline);
+                }
+              }
+            }
+          }
+        }
+      } catch (e) {
+        debugPrint('Error loading latest pending order for tracking: $e');
+      }
+    }
+
+    // 3. Fallback to GPS position
+    if (_userLocation == null) {
+      try {
+        bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+        LocationPermission permission = await Geolocator.checkPermission();
+        
+        if (permission == LocationPermission.denied) {
+          permission = await Geolocator.requestPermission();
+        }
+        
+        if (serviceEnabled && (permission == LocationPermission.always || permission == LocationPermission.whileInUse)) {
+          final pos = await Geolocator.getCurrentPosition(
+            desiredAccuracy: LocationAccuracy.medium,
+            timeLimit: const Duration(seconds: 3),
+          );
+          _userLocation = LatLng(pos.latitude, pos.longitude);
+        }
+      } catch (e) {
+        debugPrint('Geolocator error or timeout: $e');
+      }
+    }
+
+    // 4. Ultimate static fallback (Huancayo Centro)
     _userLocation ??= const LatLng(-12.0668, -75.2157);
 
-    // 2. Trazar ruta desde Tienda Aly hacia el comprador
-    try {
-      final route = await _geoService.obtenerRuta(
-        origenLat: _tiendaLocation.latitude,
-        origenLng: _tiendaLocation.longitude,
-        destinoLat: _userLocation!.latitude,
-        destinoLng: _userLocation!.longitude,
-        tipo: 'tienda_a_usuario',
-      );
+    // If route is still empty, calculate/generate it
+    if (_routePoints.isEmpty) {
+      try {
+        final route = await _geoService.obtenerRuta(
+          origenLat: _tiendaLocation.latitude,
+          origenLng: _tiendaLocation.longitude,
+          destinoLat: _userLocation!.latitude,
+          destinoLng: _userLocation!.longitude,
+          tipo: 'tienda_a_usuario',
+        );
 
-      if (route != null && route.polyline.isNotEmpty) {
-        _ruta = route;
-        _routePoints = _decodePolyline(route.polyline);
+        if (route != null && route.polyline.isNotEmpty) {
+          _ruta = route;
+          _routePoints = _decodePolyline(route.polyline);
+        }
+      } catch (e) {
+        debugPrint('Error obtaining route for delivery: $e');
       }
-    } catch (e) {
-      debugPrint('Error obteniendo ruta para delivery: $e');
     }
 
-    // Fallback de simulación de ruta directa si Mapbox falla
+    // Direct line simulation if Mapbox route failed completely
     if (_routePoints.isEmpty) {
       _routePoints = _generateStraightLinePoints(_tiendaLocation, _userLocation!, 40);
       _ruta = RutaModel(
@@ -191,6 +279,41 @@ class _SeguimientoDeliveryScreenState extends State<SeguimientoDeliveryScreen> {
       _remainingTime = 'Llegó';
       _completionPercent = 1.0;
     });
+
+    // Actualizar estado del pedido en Firestore a "entregado"
+    final String? oId = widget.orderId;
+    if (oId != null && oId.isNotEmpty) {
+      try {
+        FirebaseFirestore.instance
+            .collection('pedidos')
+            .doc(oId)
+            .update({'estado': 'entregado'});
+        debugPrint('✅ Firestore: Estado del pedido $oId actualizado a "entregado"');
+      } catch (err) {
+        debugPrint('⚠️ Firestore error al actualizar pedido: $err');
+      }
+    } else {
+      try {
+        final currentUser = FirebaseAuth.instance.currentUser;
+        if (currentUser != null) {
+          FirebaseFirestore.instance
+              .collection('pedidos')
+              .where('comprador_id', isEqualTo: currentUser.uid)
+              .where('estado', isEqualTo: 'pendiente')
+              .orderBy('fecha_pedido', descending: true)
+              .limit(1)
+              .get()
+              .then((snap) {
+            if (snap.docs.isNotEmpty) {
+              snap.docs.first.reference.update({'estado': 'entregado'});
+              debugPrint('✅ Firestore: Estado del último pedido pendiente actualizado a "entregado"');
+            }
+          });
+        }
+      } catch (err) {
+        debugPrint('⚠️ Firestore fallback error: $err');
+      }
+    }
 
     // Feedback táctil pesado
     HapticFeedback.vibrate();
@@ -288,13 +411,25 @@ class _SeguimientoDeliveryScreenState extends State<SeguimientoDeliveryScreen> {
     );
   }
 
-  List<LatLng> _decodePolyline(String encoded) {
-    if (encoded.startsWith('[')) {
+  List<LatLng> _decodePolyline(dynamic encoded) {
+    if (encoded == null) return [];
+    if (encoded is List) {
+      return encoded.map((p) {
+        if (p is List && p.length >= 2) {
+          return LatLng((p[1] as num).toDouble(), (p[0] as num).toDouble());
+        }
+        return const LatLng(0, 0);
+      }).toList();
+    }
+
+    final String str = encoded.toString().trim();
+    if (str.startsWith('[')) {
       try {
-        final List<dynamic> decoded = json.decode(encoded);
+        final List<dynamic> decoded = json.decode(str);
         return decoded.map((p) => LatLng((p[1] as num).toDouble(), (p[0] as num).toDouble())).toList();
       } catch (e) {
         debugPrint('Error decoding JSON coordinates: $e');
+        return [];
       }
     }
     return [];

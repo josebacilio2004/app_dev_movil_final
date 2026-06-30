@@ -52,6 +52,7 @@ class _PaymentGatewayScreenState extends ConsumerState<PaymentGatewayScreen> wit
   final MapController _mapController = MapController();
   RutaModel? _checkoutRoute;
   bool _calculatingRoute = false;
+  String? _lastOrderId;
 
   List<LatLng> _decodePolyline(String encoded) {
     if (encoded.startsWith('[')) {
@@ -328,6 +329,7 @@ class _PaymentGatewayScreenState extends ConsumerState<PaymentGatewayScreen> wit
 
       final result = await firestoreService.createPedido(orderData);
       _generatedReceiptId = boletaCode;
+      _lastOrderId = result['id']?.toString();
 
       // Limpiar el carrito y actualizar proveedores
       ref.read(cartProvider.notifier).clear();
@@ -1393,7 +1395,16 @@ class _PaymentGatewayScreenState extends ConsumerState<PaymentGatewayScreen> wit
               ElevatedButton.icon(
                 onPressed: () {
                   Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const SeguimientoDeliveryScreen()),
+                    MaterialPageRoute(
+                      builder: (_) => SeguimientoDeliveryScreen(
+                        polyline: _checkoutRoute?.polyline,
+                        destinoLat: _selectedLatLng.latitude,
+                        destinoLng: _selectedLatLng.longitude,
+                        distancia: _checkoutRoute?.distancia,
+                        duracion: _checkoutRoute?.duracion,
+                        orderId: _lastOrderId,
+                      ),
+                    ),
                   );
                 },
                 icon: const Icon(Icons.local_shipping_rounded),

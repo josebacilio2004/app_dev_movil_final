@@ -244,28 +244,148 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final double width = MediaQuery.of(context).size.width;
+    final isWide = width >= 900;
+
     return Scaffold(
       backgroundColor: AppTheme.primaryDark,
       body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 480),
-          child: Container(
-            width: double.infinity,
-            height: double.infinity,
-            decoration: const BoxDecoration(
-              color: AppTheme.primaryDark,
-            ),
-            child: SingleChildScrollView(
-              physics: const BouncingScrollPhysics(),
-              child: Column(
-                children: [
-                  _buildTopBranding(),
-                  _buildLoginForm(),
-                ],
+        child: isWide 
+            ? _buildSplitWebLayout(context)
+            : ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 480),
+                child: Container(
+                  width: double.infinity,
+                  height: double.infinity,
+                  decoration: const BoxDecoration(
+                    color: AppTheme.primaryDark,
+                  ),
+                  child: SingleChildScrollView(
+                    physics: const BouncingScrollPhysics(),
+                    child: Column(
+                      children: [
+                        _buildTopBranding(),
+                        _buildLoginForm(),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+      ),
+    );
+  }
+
+  Widget _buildSplitWebLayout(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      height: double.infinity,
+      color: AppTheme.primaryDark,
+      child: Row(
+        children: [
+          // Left side: Company details
+          Expanded(
+            child: Container(
+              color: AppTheme.surfaceDark,
+              padding: const EdgeInsets.all(48),
+              child: Center(
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Image.asset(
+                        'assets/logo-validado.png',
+                        height: 140,
+                        fit: BoxFit.contain,
+                        errorBuilder: (context, error, stackTrace) => const Icon(
+                          Icons.business,
+                          size: 100,
+                          color: AppTheme.accentOrange,
+                        ),
+                      ),
+                      const SizedBox(height: 32),
+                      const Text(
+                        'COMERCIALIZADORA ALY',
+                        style: TextStyle(
+                          fontSize: 28,
+                          fontWeight: FontWeight.w900,
+                          fontStyle: FontStyle.italic,
+                          letterSpacing: 3,
+                          color: Colors.white,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 8),
+                      const Text(
+                        'PORTAL DE GESTIÓN SEGURA',
+                        style: TextStyle(
+                          color: AppTheme.accentOrange,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 4,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 48),
+                      ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 450),
+                        child: Column(
+                          children: [
+                            const Text(
+                              'Comercializadora Aly se especializa en la distribución y comercialización de herramientas premium, abrasivos, consumibles de soldadura y materiales de construcción de alta calidad en toda la región central.',
+                              style: TextStyle(
+                                color: AppTheme.textGray,
+                                fontSize: 14,
+                                height: 1.6,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 24),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.03),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: Colors.white.withOpacity(0.05)),
+                              ),
+                              child: const Text(
+                                'RUC de la Empresa: 10432247657',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 1.2,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ),
           ),
-        ),
+          // Right side: Credentials Form
+          Expanded(
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 48, vertical: 24),
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 420),
+                  child: SingleChildScrollView(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildLoginForm(),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

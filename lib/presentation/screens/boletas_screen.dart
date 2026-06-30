@@ -1,5 +1,6 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -969,6 +970,13 @@ class _BoletasScreenState extends ConsumerState<BoletasScreen> {
   ) async {
     final pdf = pw.Document();
     final cleanId = docId.length > 8 ? docId.substring(0, 8).toUpperCase() : docId.toUpperCase();
+    pw.MemoryImage? logoImage;
+    try {
+      final imageBytes = await rootBundle.load('assets/logo-validado.png');
+      logoImage = pw.MemoryImage(imageBytes.buffer.asUint8List());
+    } catch (e) {
+      debugPrint('Error al cargar logo para PDF: $e');
+    }
 
     pdf.addPage(
       pw.Page(
@@ -983,20 +991,32 @@ class _BoletasScreenState extends ConsumerState<BoletasScreen> {
                 pw.Row(
                   mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                   children: [
-                    pw.Column(
+                    pw.Row(
                       crossAxisAlignment: pw.CrossAxisAlignment.start,
                       children: [
-                        pw.Text(
-                          'COMERCIALIZADORA ALY',
-                          style: pw.TextStyle(
-                            fontSize: 22,
-                            fontWeight: pw.FontWeight.bold,
-                            color: PdfColors.orange,
+                        if (logoImage != null)
+                          pw.Container(
+                            margin: const pw.EdgeInsets.only(right: 12),
+                            width: 50,
+                            height: 50,
+                            child: pw.Image(logoImage),
                           ),
+                        pw.Column(
+                          crossAxisAlignment: pw.CrossAxisAlignment.start,
+                          children: [
+                            pw.Text(
+                              'COMERCIALIZADORA ALY',
+                              style: pw.TextStyle(
+                                fontSize: 18,
+                                fontWeight: pw.FontWeight.bold,
+                                color: PdfColors.orange,
+                              ),
+                            ),
+                            pw.Text('Herramientas y Materiales de Construccion'),
+                            pw.Text('RUC: 10432247657'),
+                            pw.Text('Direccion: Calle Real 456, Huancayo'),
+                          ],
                         ),
-                        pw.Text('Herramientas y Materiales de Construccion'),
-                        pw.Text('RUC: 20123456789'),
-                        pw.Text('Direccion: Calle Real 456, Huancayo'),
                       ],
                     ),
                     pw.Column(
