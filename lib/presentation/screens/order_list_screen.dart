@@ -23,7 +23,7 @@ class OrderListScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final ordersAsync = ref.watch(ordersStreamProvider);
-    final bool isWeb = kIsWeb || MediaQuery.of(context).size.width >= 900;
+    final bool isWeb = MediaQuery.of(context).size.width >= 900;
 
     final appBar = AppBar(
       leading: Builder(

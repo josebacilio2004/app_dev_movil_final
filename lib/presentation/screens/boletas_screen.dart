@@ -174,7 +174,7 @@ class _BoletasScreenState extends ConsumerState<BoletasScreen> {
             }).toList();
           }
 
-          final bool isWeb = kIsWeb || MediaQuery.of(context).size.width >= 900;
+          final bool isWeb = MediaQuery.of(context).size.width >= 900;
           return Column(
             children: [
               // Barra de Búsqueda

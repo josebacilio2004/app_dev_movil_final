@@ -405,7 +405,7 @@ class _CatalogoScreenState extends ConsumerState<CatalogoScreen> with SingleTick
     final precioMin = ref.watch(precioMinProvider);
     final precioMax = ref.watch(precioMaxProvider);
     final isFilterActive = query.isNotEmpty || selectedCategory != null || selectedBrand != null || precioMin > 0 || precioMax < 999999;
-    final bool isWeb = kIsWeb || MediaQuery.of(context).size.width >= 900;
+    final bool isWeb = MediaQuery.of(context).size.width >= 900;
 
     final appBar = AppBar(
       backgroundColor: AppTheme.surfaceDark,
