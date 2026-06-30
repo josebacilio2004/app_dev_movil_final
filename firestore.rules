@@ -32,13 +32,20 @@ service cloud.firestore {
       allow write: if isAuthenticated() && (getUserRole() == 'admin' || getUserRole() == 'operador');
     }
 
-    // Reglas para pedidos e inversiones (reforzado)
+    // Reglas para pedidos e inversiones
     match /pedidos/{pedidoId} {
       allow read, create: if isAuthenticated();
+      // Admin y operador pueden actualizar/eliminar cualquier pedido
       allow update, delete: if isAuthenticated() && (
         getUserRole() == 'admin' || 
         getUserRole() == 'operador'
       );
+      // El comprador dueño del pedido puede actualizar solo los campos de tracking
+      // (marcar como entregado al finalizar la simulación de delivery)
+      allow update: if isAuthenticated() &&
+        resource.data.comprador_id == request.auth.uid &&
+        request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['estado', 'tracking_enabled']);
     }
 
     // Reglas para facturas y abonos
