@@ -1,21 +1,23 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:gestor_invetarios_pedidos_app/core/theme/app_theme.dart';
+import 'package:gestor_invetarios_pedidos_app/presentation/providers/auth_provider.dart';
 import 'package:gestor_invetarios_pedidos_app/data/services/gemini_service.dart';
 import 'package:gestor_invetarios_pedidos_app/presentation/widgets/common/app_drawer.dart';
 import 'package:gestor_invetarios_pedidos_app/presentation/widgets/common/glass_container.dart';
 
-class GeminiChatScreen extends StatefulWidget {
+class GeminiChatScreen extends ConsumerStatefulWidget {
   const GeminiChatScreen({super.key});
 
   @override
-  State<GeminiChatScreen> createState() => _GeminiChatScreenState();
+  ConsumerState<GeminiChatScreen> createState() => _GeminiChatScreenState();
 }
 
-class _GeminiChatScreenState extends State<GeminiChatScreen> {
+class _GeminiChatScreenState extends ConsumerState<GeminiChatScreen> {
   final GeminiService _geminiService = GeminiService();
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
@@ -36,10 +38,16 @@ class _GeminiChatScreenState extends State<GeminiChatScreen> {
     _loadChatHistory();
   }
 
+  String _getUserChatKey() {
+    final user = ref.read(authStateProvider);
+    final userId = user?.id ?? 'guest';
+    return 'gemini_chat_history_$userId';
+  }
+
   Future<void> _loadChatHistory() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final historyStr = prefs.getString('gemini_chat_history');
+      final historyStr = prefs.getString(_getUserChatKey());
       if (historyStr != null && historyStr.isNotEmpty) {
         final List<dynamic> decoded = jsonDecode(historyStr);
         setState(() {
@@ -61,7 +69,7 @@ class _GeminiChatScreenState extends State<GeminiChatScreen> {
   Future<void> _saveChatHistory() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('gemini_chat_history', jsonEncode(_messages));
+      await prefs.setString(_getUserChatKey(), jsonEncode(_messages));
     } catch (e) {
       debugPrint('Error al guardar historial de chat: $e');
     }
@@ -70,7 +78,7 @@ class _GeminiChatScreenState extends State<GeminiChatScreen> {
   Future<void> _clearChatHistory() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.remove('gemini_chat_history');
+      await prefs.remove(_getUserChatKey());
       setState(() {
         _messages.clear();
       });

@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gestor_invetarios_pedidos_app/data/services/api_service.dart';
 import 'package:gestor_invetarios_pedidos_app/data/models/producto.dart';
 import 'package:gestor_invetarios_pedidos_app/data/models/tanda.dart';
+import 'package:gestor_invetarios_pedidos_app/presentation/providers/auth_provider.dart';
 
 // --- PROVEEDOR DE SERVICIO API ---
 final apiServiceProvider = Provider((ref) => ApiService());
@@ -46,8 +47,10 @@ final investorsFutureProvider = FutureProvider<List<Map<String, dynamic>>>((ref)
   return await api.getInversionistas();
 });
 
+
 // --- PROVIDER PARA PEDIDOS (Inversionista) ---
 final ordersFutureProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
+  ref.watch(authStateProvider);
   final api = ref.watch(apiServiceProvider);
   final response = await api.get('/pedidos');
   return List<Map<String, dynamic>>.from(response.data);
@@ -55,6 +58,7 @@ final ordersFutureProvider = FutureProvider<List<Map<String, dynamic>>>((ref) as
 
 // --- PROVIDER PARA FACTURAS ---
 final invoicesFutureProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
+  ref.watch(authStateProvider);
   final api = ref.watch(apiServiceProvider);
   final response = await api.get('/facturas-comprador');
   return List<Map<String, dynamic>>.from(response.data);
