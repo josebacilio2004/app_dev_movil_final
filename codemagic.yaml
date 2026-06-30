@@ -20,6 +20,9 @@ workflows:
         script: |
           flutter config --no-enable-swift-package-manager
           flutter pub get
+      - name: Install iOS Pods
+        script: |
+          cd ios && pod install
       - name: Build Android APK
         script: |
           flutter build apk --release
