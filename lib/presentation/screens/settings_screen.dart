@@ -131,6 +131,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final surfaceColor = cs.surface;
+    final onSurfaceColor = cs.onSurface;
+    final dividerColor = isDark ? Colors.white10 : Colors.black12;
+    final subtitleColor = isDark ? AppTheme.textGray : const Color(0xFF64748B);
+
     final appBar = AppBar(
       leading: Builder(
         builder: (context) => IconButton(
@@ -144,12 +151,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           fontWeight: FontWeight.w900,
           fontSize: 14,
           letterSpacing: 1.5,
-          color: Colors.white,
+          color: onSurfaceColor,
         ),
       ),
-      backgroundColor: AppTheme.surfaceDark,
+      backgroundColor: surfaceColor,
       elevation: 0,
-      shape: Border(bottom: BorderSide(color: Colors.white.withOpacity(0.05), width: 1)),
+      shape: Border(bottom: BorderSide(color: dividerColor, width: 1)),
     );
 
     final mainContent = _isLoading
@@ -166,7 +173,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       Text(
                         'PREFERENCIAS DE SEGURIDAD',
                         style: GoogleFonts.outfit(
-                          color: AppTheme.textGray,
+                          color: subtitleColor,
                           fontSize: 10,
                           fontWeight: FontWeight.w900,
                           letterSpacing: 1.5,
@@ -197,16 +204,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                                         Text(
                                           'Acceso con Huella Dactilar',
                                           style: GoogleFonts.outfit(
-                                            color: Colors.white,
+                                            color: onSurfaceColor,
                                             fontWeight: FontWeight.bold,
                                             fontSize: 14,
                                           ),
                                         ),
                                         const SizedBox(height: 2),
-                                        const Text(
+                                        Text(
                                           'Permite iniciar sesión con biometría.',
                                           style: TextStyle(
-                                            color: AppTheme.textGray,
+                                            color: subtitleColor,
                                             fontSize: 10,
                                           ),
                                         ),
@@ -215,28 +222,28 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                                   ],
                                 ),
                                 Switch(
-                                  value: _bioEnabled,
-                                  onChanged: (kIsWeb || !_bioSupported) 
-                                      ? null 
-                                      : _toggleBiometrics,
-                                  activeColor: AppTheme.accentOrange,
-                                  activeTrackColor: AppTheme.accentOrange.withOpacity(0.3),
-                                  inactiveThumbColor: AppTheme.textGray,
-                                  inactiveTrackColor: AppTheme.surfaceDark,
-                                ),
+                                   value: _bioEnabled,
+                                   onChanged: (kIsWeb || !_bioSupported) 
+                                       ? null 
+                                       : _toggleBiometrics,
+                                   activeColor: AppTheme.accentOrange,
+                                   activeTrackColor: AppTheme.accentOrange.withOpacity(0.3),
+                                   inactiveThumbColor: subtitleColor,
+                                   inactiveTrackColor: cs.surfaceContainerHighest,
+                                 ),
                               ],
                             ),
                             
                             // Mensaje descriptivo / Advertencia
                             if (kIsWeb) ...[
-                              const Padding(
-                                padding: EdgeInsets.only(top: 16),
-                                child: Divider(color: Colors.white10),
+                              Padding(
+                                padding: const EdgeInsets.only(top: 16),
+                                child: Divider(color: dividerColor),
                               ),
                               const SizedBox(height: 8),
                               Row(
                                 children: [
-                                  const Icon(Icons.info_outline_rounded, color: AppTheme.textGray, size: 14),
+                                  Icon(Icons.info_outline_rounded, color: subtitleColor, size: 14),
                                   const SizedBox(width: 8),
                                   Expanded(
                                     child: Text(
@@ -251,20 +258,20 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                                 ],
                               ),
                             ] else if (!_bioSupported) ...[
-                              const Padding(
-                                padding: EdgeInsets.only(top: 16),
-                                child: Divider(color: Colors.white10),
+                              Padding(
+                                padding: const EdgeInsets.only(top: 16),
+                                child: Divider(color: dividerColor),
                               ),
                               const SizedBox(height: 8),
-                              const Row(
+                              Row(
                                 children: [
-                                  Icon(Icons.warning_amber_rounded, color: Colors.amber, size: 14),
-                                  SizedBox(width: 8),
+                                  const Icon(Icons.warning_amber_rounded, color: Colors.amber, size: 14),
+                                  const SizedBox(width: 8),
                                   Expanded(
                                     child: Text(
                                       'Tu dispositivo no cuenta con sensor de huella dactilar configurado o compatible con la aplicación.',
                                       style: TextStyle(
-                                        color: AppTheme.textGray,
+                                        color: subtitleColor,
                                         fontSize: 9,
                                         height: 1.3,
                                       ),
@@ -281,7 +288,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       Text(
                         'PREFERENCIAS DE INTERFAZ Y ALERTAS',
                         style: GoogleFonts.outfit(
-                          color: AppTheme.textGray,
+                          color: subtitleColor,
                           fontSize: 10,
                           fontWeight: FontWeight.w900,
                           letterSpacing: 1.5,
@@ -313,16 +320,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                                         Text(
                                           'Tema Claro (Light Mode)',
                                           style: GoogleFonts.outfit(
-                                            color: Colors.white,
+                                            color: onSurfaceColor,
                                             fontWeight: FontWeight.bold,
                                             fontSize: 14,
                                           ),
                                         ),
                                         const SizedBox(height: 2),
-                                        const Text(
+                                        Text(
                                           'Activa el tema de diseño claro.',
                                           style: TextStyle(
-                                            color: AppTheme.textGray,
+                                            color: subtitleColor,
                                             fontSize: 10,
                                           ),
                                         ),
@@ -331,28 +338,28 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                                   ],
                                 ),
                                 Switch(
-                                  value: ref.watch(themeModeProvider) == ThemeMode.light,
-                                  onChanged: (isLight) {
-                                    ref.read(themeModeProvider.notifier).toggleTheme(isLight);
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: Text(isLight ? 'Tema Claro activado.' : 'Tema Oscuro activado.'),
-                                        backgroundColor: AppTheme.successGreen,
-                                        duration: const Duration(seconds: 1),
-                                      ),
-                                    );
-                                  },
-                                  activeColor: AppTheme.accentOrange,
-                                  activeTrackColor: AppTheme.accentOrange.withOpacity(0.3),
-                                  inactiveThumbColor: AppTheme.textGray,
-                                  inactiveTrackColor: AppTheme.surfaceDark,
-                                ),
+                                   value: ref.watch(themeModeProvider) == ThemeMode.light,
+                                   onChanged: (isLight) {
+                                     ref.read(themeModeProvider.notifier).toggleTheme(isLight);
+                                     ScaffoldMessenger.of(context).showSnackBar(
+                                       SnackBar(
+                                         content: Text(isLight ? 'Tema Claro activado.' : 'Tema Oscuro activado.'),
+                                         backgroundColor: AppTheme.successGreen,
+                                         duration: const Duration(seconds: 1),
+                                       ),
+                                     );
+                                   },
+                                   activeColor: AppTheme.accentOrange,
+                                   activeTrackColor: AppTheme.accentOrange.withOpacity(0.3),
+                                   inactiveThumbColor: subtitleColor,
+                                   inactiveTrackColor: cs.surfaceContainerHighest,
+                                 ),
                               ],
                             ),
                             
-                            const Padding(
-                              padding: EdgeInsets.symmetric(vertical: 16),
-                              child: Divider(color: Colors.white10),
+                             Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              child: Divider(color: dividerColor),
                             ),
 
                             // Fila de notificaciones habilitadas/deshabilitadas
@@ -373,16 +380,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                                         Text(
                                           'Notificaciones de la App',
                                           style: GoogleFonts.outfit(
-                                            color: Colors.white,
+                                            color: onSurfaceColor,
                                             fontWeight: FontWeight.bold,
                                             fontSize: 14,
                                           ),
                                         ),
                                         const SizedBox(height: 2),
-                                        const Text(
+                                        Text(
                                           'Activa o desactiva alertas del sistema.',
                                           style: TextStyle(
-                                            color: AppTheme.textGray,
+                                            color: subtitleColor,
                                             fontSize: 10,
                                           ),
                                         ),
@@ -391,22 +398,22 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                                   ],
                                 ),
                                 Switch(
-                                  value: ref.watch(notificationsEnabledProvider),
-                                  onChanged: (enabled) {
-                                    ref.read(notificationsEnabledProvider.notifier).toggleNotifications(enabled);
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: Text(enabled ? 'Notificaciones activadas.' : 'Notificaciones desactivadas.'),
-                                        backgroundColor: AppTheme.successGreen,
-                                        duration: const Duration(seconds: 1),
-                                      ),
-                                    );
-                                  },
-                                  activeColor: AppTheme.accentOrange,
-                                  activeTrackColor: AppTheme.accentOrange.withOpacity(0.3),
-                                  inactiveThumbColor: AppTheme.textGray,
-                                  inactiveTrackColor: AppTheme.surfaceDark,
-                                ),
+                                   value: ref.watch(notificationsEnabledProvider),
+                                   onChanged: (enabled) {
+                                     ref.read(notificationsEnabledProvider.notifier).toggleNotifications(enabled);
+                                     ScaffoldMessenger.of(context).showSnackBar(
+                                       SnackBar(
+                                         content: Text(enabled ? 'Notificaciones activadas.' : 'Notificaciones desactivadas.'),
+                                         backgroundColor: AppTheme.successGreen,
+                                         duration: const Duration(seconds: 1),
+                                       ),
+                                     );
+                                   },
+                                   activeColor: AppTheme.accentOrange,
+                                   activeTrackColor: AppTheme.accentOrange.withOpacity(0.3),
+                                   inactiveThumbColor: subtitleColor,
+                                   inactiveTrackColor: cs.surfaceContainerHighest,
+                                 ),
                               ],
                             ),
                           ],
@@ -419,7 +426,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             );
 
     return Scaffold(
-      backgroundColor: AppTheme.primaryDark,
+      backgroundColor: cs.scaffoldBackgroundColor ?? cs.surface,
       drawer: const AppDrawer(currentRoute: 'settings'),
       appBar: appBar,
       body: mainContent,

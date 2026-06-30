@@ -104,6 +104,21 @@ service cloud.firestore {
       allow write: if isAuthenticated() && (getUserRole() == 'admin' || getUserRole() == 'operador');
     }
 
+    // Reglas para bitácora de mediciones AR (medidor láser)
+    // Cada usuario solo accede a sus propios documentos; admin/operador puede leer todos
+    match /mediciones_ar/{docId} {
+      allow read: if isAuthenticated() && (
+        resource.data.usuario_id == request.auth.uid ||
+        getUserRole() == 'admin' ||
+        getUserRole() == 'operador'
+      );
+      allow create: if isAuthenticated() && request.resource.data.usuario_id == request.auth.uid;
+      allow update, delete: if isAuthenticated() && (
+        resource.data.usuario_id == request.auth.uid ||
+        getUserRole() == 'admin'
+      );
+    }
+
     // Reglas para configuración general
     match /config/{documentId} {
       allow read: if true;
