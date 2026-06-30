@@ -26,10 +26,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final LocalAuthentication _localAuth = LocalAuthentication();
 
   final List<Map<String, String>> _roles = [
-    {'id': 'inversionista', 'label': 'INVERSIONISTA', 'subtitle': 'Gestión de Capital & ROI', 'icon': '📈'},
-    {'id': 'comprador', 'label': 'COMPRADOR', 'subtitle': 'Facturación & Abonos', 'icon': '🛒'},
-    {'id': 'operador', 'label': 'OPERADOR', 'subtitle': 'Logística & Distribución', 'icon': '🏭'},
-    {'id': 'admin', 'label': 'ADMIN', 'subtitle': 'Control Total del Sistema', 'icon': '🛡️'},
+    {'id': 'comprador', 'label': 'CLIENTE', 'subtitle': 'Compras & Pedidos', 'icon': '🛒'},
+    {'id': 'admin', 'label': 'ADMINISTRADOR', 'subtitle': 'Control Total del Sistema', 'icon': '🛡️'},
   ];
 
   @override
@@ -45,6 +43,21 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       final isAvailable = await _localAuth.canCheckBiometrics;
       final isDeviceSupported = await _localAuth.isDeviceSupported();
       debugPrint('Soporte biométrico - disponible: $isAvailable, dispositivo compatible: $isDeviceSupported');
+      
+      if (isAvailable && isDeviceSupported) {
+        final prefs = await SharedPreferences.getInstance();
+        final hasEnabledBio = prefs.getBool('bio_enabled') ?? false;
+        final identifier = prefs.getString('bio_identifier') ?? '';
+        final password = prefs.getString('bio_password') ?? '';
+        
+        if (hasEnabledBio && identifier.isNotEmpty && password.isNotEmpty) {
+          Future.delayed(const Duration(milliseconds: 600), () {
+            if (mounted) {
+              _handleBiometricLogin();
+            }
+          });
+        }
+      }
     } catch (e) {
       debugPrint('Error al verificar biometría: $e');
     }
@@ -198,7 +211,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         await prefs.setString('bio_identifier', identifier);
         await prefs.setString('bio_password', password);
         await prefs.setString('bio_role', user.rol);
-        // No forzamos bio_enabled en true de forma automática; el usuario decide en Configuración.
+        if (!kIsWeb) {
+          final isAvailable = await _localAuth.canCheckBiometrics;
+          final isDeviceSupported = await _localAuth.isDeviceSupported();
+          if (isAvailable && isDeviceSupported) {
+            await prefs.setBool('bio_enabled', true);
+            debugPrint('🔒 Seguridad: Huella biométrica activada automáticamente.');
+          }
+        }
       } catch (e) {
         debugPrint('Error guardando preferencias biométricas: $e');
       }

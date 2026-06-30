@@ -1,5 +1,6 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:pdf/pdf.dart';
@@ -11,6 +12,7 @@ import 'package:gestor_invetarios_pedidos_app/presentation/providers/catalogo_pr
 import 'package:gestor_invetarios_pedidos_app/data/models/catalogo_producto.dart';
 import 'package:gestor_invetarios_pedidos_app/presentation/widgets/connection_status_indicator.dart';
 import 'package:gestor_invetarios_pedidos_app/presentation/widgets/common/app_drawer.dart';
+import 'package:gestor_invetarios_pedidos_app/presentation/widgets/common/web_sidebar.dart';
 import 'package:gestor_invetarios_pedidos_app/presentation/widgets/common/glass_container.dart';
 import 'package:intl/intl.dart';
 
@@ -48,37 +50,41 @@ class _BoletasScreenState extends ConsumerState<BoletasScreen> {
     if (user == null) return const SizedBox.shrink();
 
     final firestoreService = ref.watch(firestoreServiceProvider);
+    final bool isWeb = kIsWeb || MediaQuery.of(context).size.width >= 900;
 
-    return Scaffold(
-      backgroundColor: AppTheme.primaryDark,
-      drawer: const AppDrawer(currentRoute: 'invoices'),
-      appBar: AppBar(
-        leading: Builder(
-          builder: (context) => IconButton(
-            icon: const Icon(Icons.menu_rounded, color: AppTheme.accentOrange, size: 28),
-            onPressed: () => Scaffold.of(context).openDrawer(),
-          ),
+    final appBar = AppBar(
+      leading: isWeb
+          ? null
+          : Builder(
+              builder: (context) => IconButton(
+                icon: const Icon(Icons.menu_rounded, color: AppTheme.accentOrange, size: 28),
+                onPressed: () => Scaffold.of(context).openDrawer(),
+              ),
+            ),
+      title: Text(
+        'MIS BOLETAS / FACTURAS',
+        style: GoogleFonts.outfit(
+          fontWeight: FontWeight.w900,
+          fontSize: 14,
+          letterSpacing: 1.5,
+          color: Colors.white,
         ),
-        title: Text(
-          'MIS BOLETAS / FACTURAS',
-          style: GoogleFonts.outfit(
-            fontWeight: FontWeight.w900,
-            fontSize: 14,
-            letterSpacing: 1.5,
-            color: Colors.white,
-          ),
-        ),
-        actions: [
-          const ConnectionStatusIndicator(),
-          const SizedBox(width: 16),
-        ],
-        backgroundColor: AppTheme.surfaceDark,
-        elevation: 0,
-        shape: Border(bottom: BorderSide(color: Colors.white.withOpacity(0.05), width: 1)),
       ),
-      body: StreamBuilder<List<Map<String, dynamic>>>(
-        stream: firestoreService.pedidosStream(compradorId: user.id, role: user.rol),
-        builder: (context, snapshot) {
+      actions: const [
+        ConnectionStatusIndicator(),
+        SizedBox(width: 16),
+      ],
+      backgroundColor: AppTheme.surfaceDark,
+      elevation: 0,
+      shape: Border(bottom: BorderSide(color: Colors.white.withOpacity(0.05), width: 1)),
+    );
+
+    final mainContent = Center(
+      child: Container(
+        constraints: const BoxConstraints(maxWidth: 800),
+        child: StreamBuilder<List<Map<String, dynamic>>>(
+          stream: firestoreService.pedidosStream(compradorId: user.id, role: user.rol),
+          builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator(color: AppTheme.accentOrange));
           }
@@ -197,7 +203,33 @@ class _BoletasScreenState extends ConsumerState<BoletasScreen> {
           );
         },
       ),
+     ),
     );
+
+    if (isWeb) {
+      return Scaffold(
+        backgroundColor: AppTheme.primaryDark,
+        body: Row(
+          children: [
+            WebSidebar(currentRoute: 'invoices'),
+            Expanded(
+              child: Scaffold(
+                backgroundColor: Colors.transparent,
+                appBar: appBar,
+                body: mainContent,
+              ),
+            ),
+          ],
+        ),
+      );
+    } else {
+      return Scaffold(
+        backgroundColor: AppTheme.primaryDark,
+        drawer: const AppDrawer(currentRoute: 'invoices'),
+        appBar: appBar,
+        body: mainContent,
+      );
+    }
   }
 
   Widget _buildSearchBar(String role) {
@@ -542,8 +574,10 @@ class _BoletasScreenState extends ConsumerState<BoletasScreen> {
   }
 
   Widget _buildInvoiceCard(Map<String, dynamic> o) {
-    final docId = (o['id'] ?? 'REC-XXXX').toString();
-    final cleanId = docId.length > 8 ? docId.substring(0, 8).toUpperCase() : docId.toUpperCase();
+    final docId = (o['nro_boleta'] ?? o['id'] ?? 'BOL-XXXX').toString();
+    final cleanId = docId.startsWith('B001-') || docId.startsWith('BOL-')
+        ? docId
+        : (docId.length > 8 ? docId.substring(0, 8).toUpperCase() : docId.toUpperCase());
     final fechaRaw = o['fecha_pedido'] ?? DateTime.now().toIso8601String();
     
     DateTime parsedDate;

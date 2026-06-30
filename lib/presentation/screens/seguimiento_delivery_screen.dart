@@ -66,6 +66,10 @@ class _SeguimientoDeliveryScreenState extends State<SeguimientoDeliveryScreen> {
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
       LocationPermission permission = await Geolocator.checkPermission();
       
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+      
       if (serviceEnabled && (permission == LocationPermission.always || permission == LocationPermission.whileInUse)) {
         final pos = await Geolocator.getCurrentPosition(
           desiredAccuracy: LocationAccuracy.medium,

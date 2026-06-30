@@ -8,6 +8,7 @@ import 'package:gestor_invetarios_pedidos_app/core/theme/app_theme.dart';
 import 'package:gestor_invetarios_pedidos_app/presentation/widgets/common/app_drawer.dart';
 import 'package:gestor_invetarios_pedidos_app/presentation/widgets/common/glass_container.dart';
 import 'package:gestor_invetarios_pedidos_app/presentation/providers/settings_provider.dart';
+import 'package:gestor_invetarios_pedidos_app/presentation/widgets/common/web_sidebar.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -131,32 +132,34 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppTheme.primaryDark,
-      drawer: const AppDrawer(currentRoute: 'settings'),
-      appBar: AppBar(
-        leading: Builder(
-          builder: (context) => IconButton(
-            icon: const Icon(Icons.menu_rounded, color: AppTheme.accentOrange, size: 28),
-            onPressed: () => Scaffold.of(context).openDrawer(),
-          ),
+    final bool isWeb = kIsWeb || MediaQuery.of(context).size.width >= 900;
+
+    final appBar = AppBar(
+      leading: isWeb
+          ? null
+          : Builder(
+              builder: (context) => IconButton(
+                icon: const Icon(Icons.menu_rounded, color: AppTheme.accentOrange, size: 28),
+                onPressed: () => Scaffold.of(context).openDrawer(),
+              ),
+            ),
+      title: Text(
+        'CONFIGURACIÓN',
+        style: GoogleFonts.outfit(
+          fontWeight: FontWeight.w900,
+          fontSize: 14,
+          letterSpacing: 1.5,
+          color: Colors.white,
         ),
-        title: Text(
-          'CONFIGURACIÓN',
-          style: GoogleFonts.outfit(
-            fontWeight: FontWeight.w900,
-            fontSize: 14,
-            letterSpacing: 1.5,
-            color: Colors.white,
-          ),
-        ),
-        backgroundColor: AppTheme.surfaceDark,
-        elevation: 0,
-        shape: Border(bottom: BorderSide(color: Colors.white.withOpacity(0.05), width: 1)),
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: AppTheme.accentOrange))
-          : SingleChildScrollView(
+      backgroundColor: AppTheme.surfaceDark,
+      elevation: 0,
+      shape: Border(bottom: BorderSide(color: Colors.white.withOpacity(0.05), width: 1)),
+    );
+
+    final mainContent = _isLoading
+        ? const Center(child: CircularProgressIndicator(color: AppTheme.accentOrange))
+        : SingleChildScrollView(
               padding: const EdgeInsets.all(24),
               physics: const BouncingScrollPhysics(),
               child: Center(
@@ -382,9 +385,33 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       ),
                     ],
                   ),
-                ),
+                 ),
+              ),
+            );
+
+    if (isWeb) {
+      return Scaffold(
+        backgroundColor: AppTheme.primaryDark,
+        body: Row(
+          children: [
+            const WebSidebar(currentRoute: 'settings'),
+            Expanded(
+              child: Scaffold(
+                backgroundColor: Colors.transparent,
+                appBar: appBar,
+                body: mainContent,
               ),
             ),
-    );
+          ],
+        ),
+      );
+    } else {
+      return Scaffold(
+        backgroundColor: AppTheme.primaryDark,
+        drawer: const AppDrawer(currentRoute: 'settings'),
+        appBar: appBar,
+        body: mainContent,
+      );
+    }
   }
 }

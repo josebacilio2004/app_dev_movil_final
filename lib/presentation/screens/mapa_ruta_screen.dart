@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
@@ -9,6 +10,7 @@ import 'package:gestor_invetarios_pedidos_app/data/services/geolocalizacion_serv
 import 'package:gestor_invetarios_pedidos_app/data/models/ruta_model.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:gestor_invetarios_pedidos_app/presentation/widgets/common/app_drawer.dart';
+import 'package:gestor_invetarios_pedidos_app/presentation/widgets/common/web_sidebar.dart';
 
 class MapaRutaScreen extends StatefulWidget {
   final String? usuarioId;
@@ -390,26 +392,28 @@ class _MapaRutaScreenState extends State<MapaRutaScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppTheme.primaryDark,
-      drawer: const AppDrawer(currentRoute: 'gps'),
-      appBar: AppBar(
-        title: Text(
-          'RUTA A TIENDA ALY',
-          style: GoogleFonts.outfit(fontWeight: FontWeight.w900, fontSize: 14, letterSpacing: 2),
-        ),
-        leading: Builder(
-          builder: (context) => IconButton(
-            icon: const Icon(Icons.menu_rounded, color: AppTheme.accentOrange, size: 28),
-            onPressed: () => Scaffold.of(context).openDrawer(),
-          ),
-        ),
+    final bool isWeb = kIsWeb || MediaQuery.of(context).size.width >= 900;
+
+    final appBar = AppBar(
+      title: Text(
+        'RUTA A TIENDA ALY',
+        style: GoogleFonts.outfit(fontWeight: FontWeight.w900, fontSize: 14, letterSpacing: 2),
       ),
-      body: _isLoading
-          ? const Center(
-              child: CircularProgressIndicator(color: AppTheme.accentOrange),
-            )
-          : Stack(
+      leading: isWeb
+          ? null
+          : Builder(
+              builder: (context) => IconButton(
+                icon: const Icon(Icons.menu_rounded, color: AppTheme.accentOrange, size: 28),
+                onPressed: () => Scaffold.of(context).openDrawer(),
+              ),
+            ),
+    );
+
+    final mainContent = _isLoading
+        ? const Center(
+            child: CircularProgressIndicator(color: AppTheme.accentOrange),
+          )
+        : Stack(
               children: [
                 _currentPosition == null
                     ? const Center(
@@ -627,8 +631,32 @@ class _MapaRutaScreenState extends State<MapaRutaScreen> {
                     ),
                   ),
               ],
+            );
+
+    if (isWeb) {
+      return Scaffold(
+        backgroundColor: AppTheme.primaryDark,
+        body: Row(
+          children: [
+            WebSidebar(currentRoute: 'gps'),
+            Expanded(
+              child: Scaffold(
+                backgroundColor: Colors.transparent,
+                appBar: appBar,
+                body: mainContent,
+              ),
             ),
-    );
+          ],
+        ),
+      );
+    } else {
+      return Scaffold(
+        backgroundColor: AppTheme.primaryDark,
+        drawer: const AppDrawer(currentRoute: 'gps'),
+        appBar: appBar,
+        body: mainContent,
+      );
+    }
   }
 
   Widget _infoColumn(String label, String value, IconData icon) {

@@ -15,6 +15,7 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:gestor_invetarios_pedidos_app/presentation/screens/seguimiento_delivery_screen.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 
 class PaymentGatewayScreen extends ConsumerStatefulWidget {
   const PaymentGatewayScreen({super.key});
@@ -34,6 +35,9 @@ class _PaymentGatewayScreenState extends ConsumerState<PaymentGatewayScreen> wit
   bool _isProcessing = false;
   bool _paymentSuccess = false;
   String _generatedReceiptId = '';
+
+  bool _isCurrentLocationSelected = true;
+  final _addressController = TextEditingController();
 
   List<CartItem> _purchasedItems = [];
   double _purchasedTotal = 0.0;
@@ -78,6 +82,7 @@ class _PaymentGatewayScreenState extends ConsumerState<PaymentGatewayScreen> wit
     _cvvController.dispose();
     _cvvFocusNode.dispose();
     _flipController.dispose();
+    _addressController.dispose();
     super.dispose();
   }
 
@@ -97,87 +102,101 @@ class _PaymentGatewayScreenState extends ConsumerState<PaymentGatewayScreen> wit
   Future<void> _processPayment() async {
     if (!_formKey.currentState!.validate()) return;
 
-    // Solicitar permiso de geolocalización para el delivery antes de confirmar
-    bool serviceEnabled;
-    LocationPermission permission;
+    setState(() => _isProcessing = true);
 
-    try {
-      serviceEnabled = await Geolocator.isLocationServiceEnabled();
-      if (!serviceEnabled) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Por favor, active los servicios de geolocalización/GPS para el delivery.'),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
-        return;
-      }
+    double? lat;
+    double? lng;
 
-      permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-        if (permission == LocationPermission.denied) {
+    if (_isCurrentLocationSelected) {
+      // Solicitar permiso de geolocalización para el delivery antes de confirmar
+      bool serviceEnabled;
+      LocationPermission permission;
+
+      try {
+        serviceEnabled = await Geolocator.isLocationServiceEnabled();
+        if (!serviceEnabled) {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
-                content: Text('Permiso de geolocalización denegado. Es obligatorio para procesar el delivery.'),
+                content: Text('Por favor, active los servicios de geolocalización/GPS para el delivery.'),
                 backgroundColor: Colors.red,
               ),
             );
           }
+          setState(() => _isProcessing = false);
           return;
         }
-      }
 
-      if (permission == LocationPermission.deniedForever) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Los permisos de geolocalización están permanentemente denegados. Por favor, actívelos en los ajustes.'),
-              backgroundColor: Colors.red,
-            ),
-          );
+        permission = await Geolocator.checkPermission();
+        if (permission == LocationPermission.denied) {
+          permission = await Geolocator.requestPermission();
+          if (permission == LocationPermission.denied) {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Permiso de geolocalización denegado. Es obligatorio para procesar el delivery.'),
+                  backgroundColor: Colors.red,
+                ),
+              );
+            }
+            setState(() => _isProcessing = false);
+            return;
+          }
         }
-        return;
+
+        if (permission == LocationPermission.deniedForever) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Los permisos de geolocalización están permanentemente denegados. Por favor, actívelos en los ajustes.'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+          setState(() => _isProcessing = false);
+          return;
+        }
+
+        final position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.medium);
+        lat = position.latitude;
+        lng = position.longitude;
+      } catch (e) {
+        debugPrint('Error en geolocalizacion: $e');
       }
-    } catch (e) {
-      debugPrint('Error al verificar geolocalización: $e');
     }
 
-    setState(() {
-      _isProcessing = true;
-    });
-
-    // Simular retraso de pasarela de pago (autenticación 3D Secure, validación bancaria)
-    await Future.delayed(const Duration(milliseconds: 2500));
-
-    // Registrar pedido en Firestore
-    final user = ref.read(authStateProvider);
-    final cartItems = ref.read(cartProvider);
-    final totalToPay = ref.read(cartTotalProvider);
-    final cartCount = ref.read(cartCountProvider);
-
-    _purchasedItems = List.from(cartItems);
-    _purchasedTotal = totalToPay;
-
-    if (user == null) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Error: No se encontró sesión de usuario.')),
-        );
-      }
-      setState(() {
-        _isProcessing = false;
-      });
-      return;
+    // Solicitar permiso de notificación antes de enviar el delivery
+    try {
+      final messaging = FirebaseMessaging.instance;
+      await messaging.requestPermission(
+        alert: true,
+        announcement: false,
+        badge: true,
+        carPlay: false,
+        criticalAlert: false,
+        provisional: false,
+        sound: true,
+      );
+    } catch (e) {
+      debugPrint('Error al solicitar permisos de notificación: $e');
     }
 
     try {
       final firestoreService = ref.read(firestoreServiceProvider);
+      final String boletaCode = 'B001-${(Random().nextInt(899999) + 100000).toString().padLeft(8, '0')}';
+
+      final user = ref.read(authStateProvider);
+      if (user == null) {
+        setState(() => _isProcessing = false);
+        return;
+      }
+
+      final cartItems = ref.read(cartProvider);
+      final totalToPay = ref.read(cartTotalProvider);
+      final cartCount = cartItems.fold<int>(0, (sum, item) => sum + item.cantidad);
 
       final orderData = {
+        'nro_boleta': boletaCode,
         'fecha_pedido': DateTime.now().toIso8601String(),
         'distribuidor_id': null,
         'inversionista_id': null,
@@ -190,6 +209,10 @@ class _PaymentGatewayScreenState extends ConsumerState<PaymentGatewayScreen> wit
         'capital_devuelto': 0.0,
         'devolucion_capital': 0.0,
         'ganancia_real': 0.0,
+        'tipo_despacho': _isCurrentLocationSelected ? 'gps' : 'manual',
+        'direccion_manual': _isCurrentLocationSelected ? null : _addressController.text.trim(),
+        'latitud': lat,
+        'longitud': lng,
         'items': cartItems.map((item) => {
           'producto_id': item.producto.id,
           'cantidad': item.cantidad,
@@ -205,7 +228,7 @@ class _PaymentGatewayScreenState extends ConsumerState<PaymentGatewayScreen> wit
       };
 
       final result = await firestoreService.createPedido(orderData);
-      _generatedReceiptId = result['id'] ?? 'REC-${Random().nextInt(900000) + 100000}';
+      _generatedReceiptId = boletaCode;
 
       // Limpiar el carrito y actualizar proveedores
       ref.read(cartProvider.notifier).clear();
@@ -527,8 +550,10 @@ class _PaymentGatewayScreenState extends ConsumerState<PaymentGatewayScreen> wit
                                 Expanded(child: _buildCVVField()),
                               ],
                             ),
-                            const SizedBox(height: 40),
-                            _buildPayButton(totalToPay),
+                             const SizedBox(height: 24),
+                             _buildDeliveryOptions(),
+                             const SizedBox(height: 40),
+                             _buildPayButton(totalToPay),
                             const SizedBox(height: 20),
                             _buildSecureShield(),
                           ],
@@ -930,6 +955,74 @@ class _PaymentGatewayScreenState extends ConsumerState<PaymentGatewayScreen> wit
           'Encriptación SSL de 256 bits. Conexión segura.',
           style: TextStyle(color: AppTheme.textGray, fontSize: 11),
         ),
+      ],
+    );
+  }
+
+  Widget _buildDeliveryOptions() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'MÉTODO DE DESPACHO / DELIVERY',
+          style: GoogleFonts.outfit(
+            fontSize: 10,
+            fontWeight: FontWeight.w900,
+            letterSpacing: 1.5,
+            color: AppTheme.accentOrange,
+          ),
+        ),
+        const SizedBox(height: 12),
+        Container(
+          decoration: BoxDecoration(
+            color: AppTheme.surfaceDark,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.white.withOpacity(0.08)),
+          ),
+          child: Column(
+            children: [
+              RadioListTile<bool>(
+                value: true,
+                groupValue: _isCurrentLocationSelected,
+                title: const Text('Enviar a mi ubicación GPS actual', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold)),
+                subtitle: const Text('Requerirá permisos de geolocalización', style: TextStyle(color: AppTheme.textGray, fontSize: 11)),
+                activeColor: AppTheme.accentOrange,
+                onChanged: (val) {
+                  if (val != null) setState(() => _isCurrentLocationSelected = val);
+                },
+              ),
+              Divider(color: Colors.white.withOpacity(0.05), height: 1),
+              RadioListTile<bool>(
+                value: false,
+                groupValue: _isCurrentLocationSelected,
+                title: const Text('Ingresar una nueva dirección', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold)),
+                subtitle: const Text('Escriba la dirección manualmente', style: TextStyle(color: AppTheme.textGray, fontSize: 11)),
+                activeColor: AppTheme.accentOrange,
+                onChanged: (val) {
+                  if (val != null) setState(() => _isCurrentLocationSelected = val);
+                },
+              ),
+            ],
+          ),
+        ),
+        if (!_isCurrentLocationSelected) ...[
+          const SizedBox(height: 16),
+          TextFormField(
+            controller: _addressController,
+            style: const TextStyle(color: Colors.white, fontSize: 13),
+            decoration: const InputDecoration(
+              labelText: 'Dirección de Despacho Completa',
+              hintText: 'Av. Las Gardenias 123, Lima',
+              prefixIcon: Icon(Icons.location_on_outlined, size: 20),
+            ),
+            validator: (value) {
+              if (!_isCurrentLocationSelected && (value == null || value.trim().isEmpty)) {
+                return 'Por favor ingrese la dirección de despacho';
+              }
+              return null;
+            },
+          ),
+        ],
       ],
     );
   }

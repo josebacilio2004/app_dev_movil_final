@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gestor_invetarios_pedidos_app/core/theme/app_theme.dart';
 import 'package:gestor_invetarios_pedidos_app/presentation/providers/database_provider.dart';
 import 'package:gestor_invetarios_pedidos_app/presentation/widgets/common/app_drawer.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:gestor_invetarios_pedidos_app/presentation/widgets/common/web_sidebar.dart';
 
 class OrderListScreen extends ConsumerWidget {
   const OrderListScreen({super.key});
@@ -10,32 +12,57 @@ class OrderListScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final ordersAsync = ref.watch(ordersStreamProvider);
+    final bool isWeb = kIsWeb || MediaQuery.of(context).size.width >= 900;
 
-    return Scaffold(
-      backgroundColor: AppTheme.primaryDark,
-      drawer: const AppDrawer(currentRoute: 'orders'),
-      appBar: AppBar(
-        leading: Builder(
-          builder: (context) => IconButton(
-            icon: const Icon(Icons.menu_rounded, color: AppTheme.accentOrange, size: 28),
-            onPressed: () => Scaffold.of(context).openDrawer(),
-          ),
+    final appBar = AppBar(
+      leading: isWeb
+          ? null
+          : Builder(
+              builder: (context) => IconButton(
+                icon: const Icon(Icons.menu_rounded, color: AppTheme.accentOrange, size: 28),
+                onPressed: () => Scaffold.of(context).openDrawer(),
+              ),
+            ),
+      title: const Text('PEDIDOS ALY', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16, letterSpacing: 1.5)),
+      backgroundColor: Colors.transparent,
+      elevation: 0,
+    );
+
+    final mainContent = Center(
+      child: Container(
+        constraints: const BoxConstraints(maxWidth: 800),
+        child: ordersAsync.when(
+          data: (orders) => _buildOrderList(orders),
+          loading: () => const Center(child: CircularProgressIndicator(color: AppTheme.accentOrange)),
+          error: (e, _) => Center(child: Text('Error: $e')),
         ),
-        title: const Text('PEDIDOS ALY', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16, letterSpacing: 1.5)),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-      ),
-      body: ordersAsync.when(
-        data: (orders) => _buildOrderList(orders),
-        loading: () => const Center(child: CircularProgressIndicator(color: AppTheme.accentOrange)),
-        error: (e, _) => Center(child: Text('Error: $e')),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {},
-        backgroundColor: AppTheme.accentOrange,
-        child: const Icon(Icons.add_shopping_cart, color: Colors.white),
       ),
     );
+
+    if (isWeb) {
+      return Scaffold(
+        backgroundColor: AppTheme.primaryDark,
+        body: Row(
+          children: [
+            const WebSidebar(currentRoute: 'orders'),
+            Expanded(
+              child: Scaffold(
+                backgroundColor: Colors.transparent,
+                appBar: appBar,
+                body: mainContent,
+              ),
+            ),
+          ],
+        ),
+      );
+    } else {
+      return Scaffold(
+        backgroundColor: AppTheme.primaryDark,
+        drawer: const AppDrawer(currentRoute: 'orders'),
+        appBar: appBar,
+        body: mainContent,
+      );
+    }
   }
 
   Widget _buildOrderList(List<Map<String, dynamic>> orders) {

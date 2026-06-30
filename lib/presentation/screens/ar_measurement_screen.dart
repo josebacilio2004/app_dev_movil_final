@@ -12,17 +12,24 @@ import 'package:gestor_invetarios_pedidos_app/core/theme/app_theme.dart';
 import 'package:gestor_invetarios_pedidos_app/presentation/widgets/common/app_drawer.dart';
 import 'package:gestor_invetarios_pedidos_app/presentation/widgets/common/web_sidebar.dart';
 
-class ArMeasurementScreen extends StatefulWidget {
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:gestor_invetarios_pedidos_app/presentation/providers/cart_provider.dart';
+import 'package:gestor_invetarios_pedidos_app/data/models/catalogo_producto.dart';
+import 'package:gestor_invetarios_pedidos_app/data/services/gemini_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+class ArMeasurementScreen extends ConsumerStatefulWidget {
   const ArMeasurementScreen({super.key});
 
   @override
-  State<ArMeasurementScreen> createState() => _ArMeasurementScreenState();
+  ConsumerState<ArMeasurementScreen> createState() => _ArMeasurementScreenState();
 }
 
-class _ArMeasurementScreenState extends State<ArMeasurementScreen> {
+class _ArMeasurementScreenState extends ConsumerState<ArMeasurementScreen> {
   StreamSubscription? _accelerometerSubscription;
   File? _backgroundImage;
   Uint8List? _webImageBytes;
+  bool _isEstimating = false;
   final ImagePicker _picker = ImagePicker();
 
   // Ángulos calculados
@@ -267,7 +274,14 @@ class _ArMeasurementScreenState extends State<ArMeasurementScreen> {
           top: 16,
           left: 16,
           right: 16,
-          child: _buildAngleOverlayPanel(laserColor),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _buildAngleOverlayPanel(laserColor),
+              const SizedBox(height: 8),
+              _buildInstructionsBanner(),
+            ],
+          ),
         ),
 
         // 5. Panel inferior de Controles de Proyección y selección de producto
@@ -285,7 +299,7 @@ class _ArMeasurementScreenState extends State<ArMeasurementScreen> {
         backgroundColor: AppTheme.primaryDark,
         body: Row(
           children: [
-            const WebSidebar(currentRoute: 'ar_camera'),
+            WebSidebar(currentRoute: 'ar_camera'),
             Expanded(
               child: Scaffold(
                 backgroundColor: Colors.transparent,
@@ -641,7 +655,7 @@ class _ArMeasurementScreenState extends State<ArMeasurementScreen> {
           ),
           const SizedBox(height: 8),
 
-          // 4. Botón Restablecer
+          // 4. Botón Restablecer e IA
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -650,27 +664,208 @@ class _ArMeasurementScreenState extends State<ArMeasurementScreen> {
                 icon: const Icon(Icons.restore_rounded, size: 14, color: AppTheme.textGray),
                 label: const Text('REAJUSTAR OBJETO', style: TextStyle(color: AppTheme.textGray, fontSize: 9)),
               ),
-              ElevatedButton(
-                onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('¡Proyección de ${_selectedProduct} guardada en el reporte!'),
-                      backgroundColor: AppTheme.successGreen,
+              Row(
+                children: [
+                  if (_isEstimating)
+                    const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(color: AppTheme.accentOrange, strokeWidth: 2),
+                    )
+                  else
+                    ElevatedButton.icon(
+                      onPressed: _estimarMaterialesConIA,
+                      icon: const Icon(Icons.auto_awesome, size: 12, color: Colors.white),
+                      label: const Text('ESTIMAR IA', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold)),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF6366F1),
+                        minimumSize: const Size(90, 36),
+                        padding: const EdgeInsets.symmetric(horizontal: 10),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
                     ),
-                  );
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.accentOrange,
-                  minimumSize: const Size(120, 36),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                ),
-                child: const Text('CAPTURAR OBRA', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
+                  const SizedBox(width: 8),
+                  ElevatedButton(
+                    onPressed: _guardarCapturaObra,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.accentOrange,
+                      minimumSize: const Size(100, 36),
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                    child: const Text('CAPTURAR OBRA', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold)),
+                  ),
+                ],
               ),
             ],
           ),
         ],
       ),
     );
+  }
+
+  Widget _buildInstructionsBanner() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1E3A8A).withOpacity(0.9),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.blueAccent.withOpacity(0.3)),
+      ),
+      child: const Row(
+        children: [
+          Icon(Icons.info_outline_rounded, color: Colors.blueAccent, size: 14),
+          SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              '💡 Indicaciones: Pulsa 📷 arriba a la derecha para tomar foto de tu pared. Arrastra y escala tu herramienta virtual, luego pulsa "CAPTURAR OBRA" para guardarla.',
+              style: TextStyle(color: Colors.white, fontSize: 8.5, height: 1.3),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _guardarCapturaObra() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final List<String> list = prefs.getStringList('saved_ar_projects') ?? [];
+      
+      final String record = 'Proyecto Medición - ${_selectedProduct} | Ángulo: ${_pitch.toStringAsFixed(1)}° | Escala: ${_productScale.toStringAsFixed(2)}x | Fecha: ${DateTime.now().toLocal().toString().substring(0, 16)}';
+      list.add(record);
+      
+      await prefs.setStringList('saved_ar_projects', list);
+      
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            backgroundColor: AppTheme.surfaceDark,
+            title: const Row(
+              children: [
+                Icon(Icons.check_circle_rounded, color: AppTheme.successGreen),
+                SizedBox(width: 10),
+                Text('Proyecto Guardado', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
+              ],
+            ),
+            content: Text(
+              '¡Medición de ${_selectedProduct} guardada con éxito!\n\nSe ha guardado localmente en tu Bitácora de Obra (SharedPreferences del dispositivo).\n\nRegistro: "$record"',
+              style: const TextStyle(color: AppTheme.textGray, fontSize: 12, height: 1.4),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('ENTENDIDO', style: TextStyle(color: AppTheme.accentOrange)),
+              ),
+            ],
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('Error guardando proyecto: $e');
+    }
+  }
+
+  void _estimarMaterialesConIA() async {
+    setState(() => _isEstimating = true);
+    
+    final double areaM2 = (_productScale * 8.5);
+    final String areaStr = areaM2.toStringAsFixed(1);
+    
+    final prompt = 'Hola Asistente Técnico Aly. Estoy usando el Medidor Láser AR para medir una pared de obra. El área medida es de $areaStr metros cuadrados y planeo usar el nivelador de alineación "$_selectedProduct" para el tarrajeo y pintado. \n'
+        'Calcula cuánto Cemento Portland Aly (código MC-CEME-001, precio S/ 28.50) y cuánta Silicona Aly (código AC-SILI-003, precio S/ 14.90) necesitaré para cubrir esta área. \n'
+        'Por favor, estructúralo de forma amigable e indica las cantidades exactas a comprar.';
+
+    try {
+      final geminiService = GeminiService();
+      final response = await geminiService.chat(history: [
+        {'role': 'user', 'text': prompt}
+      ]);
+      
+      if (!mounted) return;
+      
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          backgroundColor: AppTheme.surfaceDark,
+          title: const Row(
+            children: [
+              Icon(Icons.auto_awesome, color: AppTheme.accentOrange),
+              SizedBox(width: 10),
+              Text('CÁLCULO IA DE MATERIALES', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Basado en tu medición AR de $areaStr m²:',
+                  style: const TextStyle(color: AppTheme.textGray, fontSize: 11, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  response,
+                  style: const TextStyle(color: Colors.white, fontSize: 12, height: 1.4),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('CERRAR', style: TextStyle(color: AppTheme.textGray)),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                final cartNotifier = ref.read(cartProvider.notifier);
+                
+                final cemento = CatalogoProducto(
+                  id: 'prod_cemento_aly',
+                  nombre: 'Cemento Portland Extra Fuerte Aly',
+                  descripcion: 'Cemento de alta resistencia y fraguado rápido.',
+                  precioUnitario: 28.50,
+                  precioMayorista: 26.00,
+                  stockMinimo: 10,
+                  imagenUrl: 'https://images.unsplash.com/photo-1589939705384-5185137a7f0f?q=80&w=400',
+                  categoria: 'Materiales de Construcción',
+                  subcategoria: 'Cemento',
+                  marca: 'Aly Industrial',
+                  codigoSku: 'MC-CEME-001',
+                  unidad: 'bolsa',
+                  tags: ['cemento', 'portland', 'construccion'],
+                  disponible: true,
+                  caracteristicas: ['Resistente al salitre', 'Fraguado rápido'],
+                );
+
+                cartNotifier.addItem(cemento);
+                cartNotifier.addItem(cemento);
+
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('¡Materiales sugeridos agregados al carrito de compras!'),
+                    backgroundColor: AppTheme.successGreen,
+                  ),
+                );
+                Navigator.pop(context);
+              },
+              child: const Text('AÑADIR MATERIALES AL CARRITO'),
+            ),
+          ],
+        ),
+      );
+    } catch (e) {
+      debugPrint('Error estimando materiales con IA: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No se pudo conectar con el Asistente IA en este momento.')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isEstimating = false);
+    }
   }
 }
 

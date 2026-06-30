@@ -278,6 +278,62 @@ class _CatalogoScreenState extends ConsumerState<CatalogoScreen> with SingleTick
   void _startListening() async {
     if (!_speechEnabled) {
       _initSpeech();
+      
+      showDialog(
+        context: context,
+        builder: (context) {
+          final voiceMockController = TextEditingController();
+          return AlertDialog(
+            backgroundColor: AppTheme.surfaceDark,
+            title: const Row(
+              children: [
+                Icon(Icons.mic_rounded, color: AppTheme.accentOrange),
+                SizedBox(width: 10),
+                Text('Búsqueda por Voz', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              ],
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'El reconocimiento de voz del sistema no está disponible en este navegador o emulador. Puedes simular tu voz escribiendo lo que dirías:',
+                  style: TextStyle(color: AppTheme.textGray, fontSize: 11, height: 1.3),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: voiceMockController,
+                  autofocus: true,
+                  style: const TextStyle(color: Colors.white, fontSize: 13),
+                  decoration: const InputDecoration(
+                    labelText: 'Ingresa tu comando de voz...',
+                    hintText: 'Ej. martillo, cemento, casco...',
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('CANCELAR', style: TextStyle(color: AppTheme.textGray)),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  final text = voiceMockController.text.trim();
+                  if (text.isNotEmpty) {
+                    setState(() {
+                      _searchController.text = text;
+                    });
+                    ref.read(searchQueryProvider.notifier).state = text;
+                  }
+                  Navigator.pop(context);
+                },
+                child: const Text('BUSCAR'),
+              ),
+            ],
+          );
+        },
+      );
       return;
     }
     setState(() => _isListening = true);
@@ -1184,17 +1240,8 @@ class _CatalogoScreenState extends ConsumerState<CatalogoScreen> with SingleTick
                                   fontSize: 12,
                                   color: Colors.white,
                                 ),
-                                maxLines: 1,
+                                maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
-                              ),
-                              const SizedBox(height: 1),
-                              Text(
-                                producto.marca,
-                                style: const TextStyle(
-                                  color: AppTheme.textGray,
-                                  fontSize: 9,
-                                  fontWeight: FontWeight.w500,
-                                ),
                               ),
                             ],
                           ),
@@ -1214,22 +1261,6 @@ class _CatalogoScreenState extends ConsumerState<CatalogoScreen> with SingleTick
                                       color: Colors.white,
                                     ),
                                   ),
-                                  const SizedBox(height: 1),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
-                                    decoration: BoxDecoration(
-                                      color: AppTheme.successGreen.withOpacity(0.1),
-                                      borderRadius: BorderRadius.circular(4),
-                                    ),
-                                    child: Text(
-                                      'Mayorista: S/ ${producto.precioMayorista.toStringAsFixed(2)}',
-                                      style: const TextStyle(
-                                        fontSize: 7.5,
-                                        fontWeight: FontWeight.w800,
-                                        color: AppTheme.successGreen,
-                                      ),
-                                    ),
-                                  ),
                                 ],
                               ),
                               Row(
@@ -1242,8 +1273,7 @@ class _CatalogoScreenState extends ConsumerState<CatalogoScreen> with SingleTick
                                       fontWeight: FontWeight.w600,
                                     ),
                                   ),
-                                  IconButton(
-                                    icon: const Icon(Icons.add_shopping_cart_rounded, size: 18, color: AppTheme.accentOrange),
+                                  ElevatedButton.icon(
                                     onPressed: !producto.disponible
                                         ? null
                                         : () {
@@ -1257,9 +1287,21 @@ class _CatalogoScreenState extends ConsumerState<CatalogoScreen> with SingleTick
                                               ),
                                             );
                                           },
-                                    padding: EdgeInsets.zero,
-                                    constraints: const BoxConstraints(),
-                                    tooltip: 'Agregar al Carrito',
+                                    icon: const Icon(Icons.add_shopping_cart_rounded, size: 12, color: Colors.white),
+                                    label: const Text(
+                                      'AL CARRITO',
+                                      style: TextStyle(fontSize: 8.5, fontWeight: FontWeight.w900, color: Colors.white),
+                                    ),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: AppTheme.accentOrange,
+                                      disabledBackgroundColor: Colors.white.withOpacity(0.05),
+                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                      minimumSize: Size.zero,
+                                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                    ),
                                   ),
                                 ],
                               ),
@@ -1899,6 +1941,9 @@ class _AddEditProductDialogState extends ConsumerState<_AddEditProductDialog> {
     _precioUnitCtrl = TextEditingController(text: p?.precioUnitario != null ? p!.precioUnitario.toStringAsFixed(2) : '');
     _precioMayCtrl = TextEditingController(text: p?.precioMayorista != null ? p!.precioMayorista.toStringAsFixed(2) : '');
     _imagenUrlCtrl = TextEditingController(text: p?.imagenUrl ?? '');
+    _imagenUrlCtrl.addListener(() {
+      if (mounted) setState(() {});
+    });
     _tagsCtrl = TextEditingController(text: p?.tags.join(', ') ?? '');
     _customAppsScriptUrlCtrl = TextEditingController(text: GoogleDriveService.appsScriptUrl);
     

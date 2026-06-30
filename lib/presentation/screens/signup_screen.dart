@@ -27,9 +27,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
   final ReniecService _reniecService = ReniecService();
 
   final List<Map<String, String>> _roles = [
-    {'id': 'comprador', 'label': 'COMPRADOR'},
-    {'id': 'operador', 'label': 'OPERADOR'},
-    {'id': 'inversionista', 'label': 'INVERSIONISTA'},
+    {'id': 'comprador', 'label': 'CLIENTE'},
     {'id': 'admin', 'label': 'ADMINISTRADOR'},
   ];
 

@@ -6,6 +6,8 @@ import 'package:gestor_invetarios_pedidos_app/core/theme/app_theme.dart';
 import 'package:gestor_invetarios_pedidos_app/presentation/providers/notification_provider.dart';
 import 'package:gestor_invetarios_pedidos_app/presentation/widgets/common/app_drawer.dart';
 import 'package:gestor_invetarios_pedidos_app/presentation/widgets/common/glass_container.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:gestor_invetarios_pedidos_app/presentation/widgets/common/web_sidebar.dart';
 
 class NotificationInboxScreen extends ConsumerStatefulWidget {
   const NotificationInboxScreen({super.key});
@@ -30,6 +32,7 @@ class _NotificationInboxScreenState extends ConsumerState<NotificationInboxScree
   @override
   Widget build(BuildContext context) {
     final notifications = ref.watch(notificationHistoryProvider);
+    final bool isWeb = kIsWeb || MediaQuery.of(context).size.width >= 900;
 
     // Filtrar notificaciones por búsqueda
     final filteredNotifications = notifications.where((n) {
@@ -38,66 +41,96 @@ class _NotificationInboxScreenState extends ConsumerState<NotificationInboxScree
       return n.title.toLowerCase().contains(q) || n.body.toLowerCase().contains(q);
     }).toList();
 
-    return Scaffold(
-      backgroundColor: AppTheme.primaryDark,
-      drawer: const AppDrawer(currentRoute: 'notifications'),
-      appBar: AppBar(
-        leading: Builder(
-          builder: (context) => IconButton(
-            icon: const Icon(Icons.menu_rounded, color: AppTheme.accentOrange, size: 28),
-            onPressed: () => Scaffold.of(context).openDrawer(),
-          ),
-        ),
-        title: Text(
-          'BANDEJA DE NOTIFICACIONES',
-          style: GoogleFonts.outfit(
-            fontWeight: FontWeight.w900,
-            fontSize: 14,
-            letterSpacing: 1.5,
-            color: Colors.white,
-          ),
-        ),
-        actions: [
-          if (notifications.isNotEmpty)
-            TextButton.icon(
-              onPressed: () => _confirmClearAll(context),
-              icon: const Icon(Icons.delete_sweep_rounded, color: Colors.redAccent, size: 18),
-              label: Text(
-                'VACIAR',
-                style: GoogleFonts.outfit(
-                  color: Colors.redAccent,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w900,
-                ),
+    final appBar = AppBar(
+      leading: isWeb
+          ? null
+          : Builder(
+              builder: (context) => IconButton(
+                icon: const Icon(Icons.menu_rounded, color: AppTheme.accentOrange, size: 28),
+                onPressed: () => Scaffold.of(context).openDrawer(),
               ),
             ),
-          const SizedBox(width: 8),
-        ],
-        backgroundColor: AppTheme.surfaceDark,
-        elevation: 0,
-        shape: Border(bottom: BorderSide(color: Colors.white.withOpacity(0.05), width: 1)),
+      title: Text(
+        'BANDEJA DE AVISOS',
+        style: GoogleFonts.outfit(
+          fontWeight: FontWeight.w900,
+          fontSize: 14,
+          letterSpacing: 1.5,
+          color: Colors.white,
+        ),
       ),
-      body: Column(
-        children: [
-          // Barra de búsqueda
-          _buildSearchBar(),
-          
-          Expanded(
-            child: filteredNotifications.isEmpty
-                ? _buildEmptyState()
-                : ListView.builder(
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                    physics: const BouncingScrollPhysics(),
-                    itemCount: filteredNotifications.length,
-                    itemBuilder: (context, index) {
-                      final n = filteredNotifications[index];
-                      return _buildNotificationCard(n);
-                    },
-                  ),
+      actions: [
+        if (notifications.isNotEmpty)
+          TextButton.icon(
+            onPressed: () => _confirmClearAll(context),
+            icon: const Icon(Icons.delete_sweep_rounded, color: Colors.redAccent, size: 18),
+            label: Text(
+              'VACIAR',
+              style: GoogleFonts.outfit(
+                color: Colors.redAccent,
+                fontSize: 11,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 1,
+              ),
+            ),
           ),
-        ],
+        const SizedBox(width: 8),
+      ],
+      backgroundColor: AppTheme.surfaceDark,
+      elevation: 0,
+      shape: Border(bottom: BorderSide(color: Colors.white.withOpacity(0.05), width: 1)),
+    );
+
+    final mainContent = Center(
+      child: Container(
+        constraints: const BoxConstraints(maxWidth: 800),
+        child: Column(
+          children: [
+            // Barra de búsqueda
+            _buildSearchBar(),
+            
+            Expanded(
+              child: filteredNotifications.isEmpty
+                  ? _buildEmptyState()
+                  : ListView.builder(
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                      physics: const BouncingScrollPhysics(),
+                      itemCount: filteredNotifications.length,
+                      itemBuilder: (context, index) {
+                        final n = filteredNotifications[index];
+                        return _buildNotificationCard(n);
+                      },
+                    ),
+            ),
+          ],
+        ),
       ),
     );
+
+    if (isWeb) {
+      return Scaffold(
+        backgroundColor: AppTheme.primaryDark,
+        body: Row(
+          children: [
+            const WebSidebar(currentRoute: 'notifications'),
+            Expanded(
+              child: Scaffold(
+                backgroundColor: Colors.transparent,
+                appBar: appBar,
+                body: mainContent,
+              ),
+            ),
+          ],
+        ),
+      );
+    } else {
+      return Scaffold(
+        backgroundColor: AppTheme.primaryDark,
+        drawer: const AppDrawer(currentRoute: 'notifications'),
+        appBar: appBar,
+        body: mainContent,
+      );
+    }
   }
 
   Widget _buildSearchBar() {

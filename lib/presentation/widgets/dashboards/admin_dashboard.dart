@@ -142,44 +142,161 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
 
   Widget _buildChartsRow() {
     return SizedBox(
-      height: 200,
+      height: 220,
       child: Row(
         children: [
+          // Gráfico de Torta: Pedidos
           Expanded(
             child: GlassContainer(
               padding: const EdgeInsets.all(16),
               borderRadius: 12,
-              child: PieChart(
-                PieChartData(
-                  sections: [
-                    PieChartSectionData(value: 65, color: const Color(0xFF10B981), radius: 6, showTitle: false),
-                    PieChartSectionData(value: 35, color: const Color(0xFF3B82F6), radius: 6, showTitle: false),
-                  ],
-                  centerSpaceRadius: 40,
-                ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'ESTADO DE PEDIDOS',
+                    style: GoogleFonts.outfit(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w900,
+                      color: AppTheme.textGray,
+                      letterSpacing: 1.2,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Expanded(
+                    child: Row(
+                      children: [
+                        Expanded(
+                          flex: 3,
+                          child: PieChart(
+                            PieChartData(
+                              sections: [
+                                PieChartSectionData(
+                                  value: 65, 
+                                  color: const Color(0xFF10B981), 
+                                  radius: 12, 
+                                  showTitle: true,
+                                  title: '65%',
+                                  titleStyle: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white),
+                                ),
+                                PieChartSectionData(
+                                  value: 35, 
+                                  color: const Color(0xFF3B82F6), 
+                                  radius: 12, 
+                                  showTitle: true,
+                                  title: '35%',
+                                  titleStyle: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white),
+                                ),
+                              ],
+                              centerSpaceRadius: 28,
+                              sectionsSpace: 3,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          flex: 4,
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _legendRow(const Color(0xFF10B981), 'Entregados'),
+                              const SizedBox(height: 8),
+                              _legendRow(const Color(0xFF3B82F6), 'En Proceso'),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
           const SizedBox(width: 12),
+          // Gráfico de Barras: Ventas
           Expanded(
             child: GlassContainer(
               padding: const EdgeInsets.all(16),
               borderRadius: 12,
-              child: BarChart(
-                BarChartData(
-                  barGroups: [
-                    BarChartGroupData(x: 0, barRods: [BarChartRodData(toY: 8, color: AppTheme.accentOrange, width: 8)]),
-                    BarChartGroupData(x: 1, barRods: [BarChartRodData(toY: 10, color: const Color(0xFF10B981), width: 8)]),
-                    BarChartGroupData(x: 2, barRods: [BarChartRodData(toY: 7, color: const Color(0xFF3B82F6), width: 8)]),
-                  ],
-                  borderData: FlBorderData(show: false),
-                  gridData: const FlGridData(show: false),
-                ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'VENTAS TRIMESTRALES (S/)',
+                    style: GoogleFonts.outfit(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w900,
+                      color: AppTheme.textGray,
+                      letterSpacing: 1.2,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Expanded(
+                    child: BarChart(
+                      BarChartData(
+                        titlesData: FlTitlesData(
+                          show: true,
+                          bottomTitles: AxisTitles(
+                            sideTitles: SideTitles(
+                              showTitles: true,
+                              getTitlesWidget: (value, meta) {
+                                switch (value.toInt()) {
+                                  case 0:
+                                    return const Text('Ene', style: TextStyle(color: AppTheme.textGray, fontSize: 8, fontWeight: FontWeight.bold));
+                                  case 1:
+                                    return const Text('Feb', style: TextStyle(color: AppTheme.textGray, fontSize: 8, fontWeight: FontWeight.bold));
+                                  case 2:
+                                    return const Text('Mar', style: TextStyle(color: AppTheme.textGray, fontSize: 8, fontWeight: FontWeight.bold));
+                                  default:
+                                    return const Text('');
+                                }
+                              },
+                            ),
+                          ),
+                          leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                          topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                          rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                        ),
+                        barGroups: [
+                          BarChartGroupData(x: 0, barRods: [BarChartRodData(toY: 8, color: AppTheme.accentOrange, width: 12, borderRadius: BorderRadius.circular(3))]),
+                          BarChartGroupData(x: 1, barRods: [BarChartRodData(toY: 10, color: const Color(0xFF10B981), width: 12, borderRadius: BorderRadius.circular(3))]),
+                          BarChartGroupData(x: 2, barRods: [BarChartRodData(toY: 7, color: const Color(0xFF3B82F6), width: 12, borderRadius: BorderRadius.circular(3))]),
+                        ],
+                        borderData: FlBorderData(show: false),
+                        gridData: const FlGridData(show: false),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _legendRow(Color color, String label) {
+    return Row(
+      children: [
+        Container(
+          width: 8,
+          height: 8,
+          decoration: BoxDecoration(
+            color: color,
+            shape: BoxShape.circle,
+          ),
+        ),
+        const SizedBox(width: 6),
+        Expanded(
+          child: Text(
+            label,
+            style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w600, color: Colors.white),
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      ],
     );
   }
 
@@ -313,7 +430,37 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
                 const SizedBox(height: 16),
                 const Text('URL DE IMAGEN', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w900, color: AppTheme.textGray)),
                 const SizedBox(height: 8),
-                TextField(controller: imageUrl, decoration: const InputDecoration(hintText: 'https://...')),
+                TextField(
+                  controller: imageUrl,
+                  decoration: const InputDecoration(hintText: 'https://...'),
+                  onChanged: (val) => setState(() {}),
+                ),
+                if (imageUrl.text.trim().isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  const Text('VISTA PREVIA DE LA IMAGEN', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w900, color: AppTheme.textGray)),
+                  const SizedBox(height: 8),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: Image.network(
+                      imageUrl.text.trim(),
+                      height: 120,
+                      width: double.infinity,
+                      fit: BoxFit.cover,
+                      errorBuilder: (ctx, error, stack) => Container(
+                        height: 120,
+                        width: double.infinity,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.03),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.white10),
+                        ),
+                        child: const Center(
+                          child: Icon(Icons.broken_image_rounded, color: AppTheme.textGray, size: 32),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
