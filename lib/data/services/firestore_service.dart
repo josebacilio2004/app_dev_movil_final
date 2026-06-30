@@ -199,9 +199,25 @@ class FirestoreService {
     final list = snapshot.docs.map((doc) => {'id': doc.id, ...doc.data()}).toList();
     // Ordenar en memoria por fecha_pedido descendente para evitar indexación compleja en Firebase
     list.sort((a, b) {
-      final aFecha = a['fecha_pedido'] ?? '';
-      final bFecha = b['fecha_pedido'] ?? '';
-      return bFecha.compareTo(aFecha);
+      final aVal = a['fecha_pedido'];
+      final bVal = b['fecha_pedido'];
+      String aStr = '';
+      if (aVal is Timestamp) {
+        aStr = aVal.toDate().toIso8601String();
+      } else if (aVal is String) {
+        aStr = aVal;
+      } else if (aVal != null) {
+        aStr = aVal.toString();
+      }
+      String bStr = '';
+      if (bVal is Timestamp) {
+        bStr = bVal.toDate().toIso8601String();
+      } else if (bVal is String) {
+        bStr = bVal;
+      } else if (bVal != null) {
+        bStr = bVal.toString();
+      }
+      return bStr.compareTo(aStr);
     });
     
     return list;
@@ -232,16 +248,54 @@ class FirestoreService {
           .map((snapshot) {
             final list = snapshot.docs.map((doc) => {'id': doc.id, ...doc.data()}).toList();
             list.sort((a, b) {
-              final aFecha = a['fecha_pedido'] ?? '';
-              final bFecha = b['fecha_pedido'] ?? '';
-              return bFecha.compareTo(aFecha);
+              final aVal = a['fecha_pedido'];
+              final bVal = b['fecha_pedido'];
+              String aStr = '';
+              if (aVal is Timestamp) {
+                aStr = aVal.toDate().toIso8601String();
+              } else if (aVal is String) {
+                aStr = aVal;
+              } else if (aVal != null) {
+                aStr = aVal.toString();
+              }
+              String bStr = '';
+              if (bVal is Timestamp) {
+                bStr = bVal.toDate().toIso8601String();
+              } else if (bVal is String) {
+                bStr = bVal;
+              } else if (bVal != null) {
+                bStr = bVal.toString();
+              }
+              return bStr.compareTo(aStr);
             });
             return list;
           });
     }
-    return _db.collection('pedidos').orderBy('fecha_pedido', descending: true).snapshots().map(
-      (snapshot) => snapshot.docs.map((doc) => {'id': doc.id, ...doc.data()}).toList(),
-    );
+    return _db.collection('pedidos').snapshots().map((snapshot) {
+      final list = snapshot.docs.map((doc) => {'id': doc.id, ...doc.data()}).toList();
+      list.sort((a, b) {
+        final aVal = a['fecha_pedido'];
+        final bVal = b['fecha_pedido'];
+        String aStr = '';
+        if (aVal is Timestamp) {
+          aStr = aVal.toDate().toIso8601String();
+        } else if (aVal is String) {
+          aStr = aVal;
+        } else if (aVal != null) {
+          aStr = aVal.toString();
+        }
+        String bStr = '';
+        if (bVal is Timestamp) {
+          bStr = bVal.toDate().toIso8601String();
+        } else if (bVal is String) {
+          bStr = bVal;
+        } else if (bVal != null) {
+          bStr = bVal.toString();
+        }
+        return bStr.compareTo(aStr);
+      });
+      return list;
+    });
   }
 
   // ============================================================
