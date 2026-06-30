@@ -1,6 +1,17 @@
-# Gestor de Inventario y Pedidos - Comercializadora Aly 🛠️📦
+# Gestor de Inventario y Pedidos - Comercializadora Aly S.A. 🛠️📦
 
-Una aplicación móvil y web multiplataforma desarrollada en **Flutter** para la gestión en tiempo real de inventarios, pedidos, facturación y geolocalización para **Comercializadora Aly**. La aplicación cuenta con un diseño premium con estética industrial, glassmorphism, modo oscuro e interacciones fluidas.
+Una suite multiplataforma premium desarrollada para la gestión en tiempo real de inventarios, pedidos, facturación digital y geolocalización inteligente para **Comercializadora Aly S.A.** (empresa real del sector de construcción y herramientas).
+
+El ecosistema está compuesto por dos plataformas conectadas en tiempo real:
+1. **Aplicación Móvil y Web Principal (Flutter / Riverpod / Firebase)**
+2. **Portal Logístico y Administrativo Independiente (HTML5 / CSS3 / Vanilla JS / Firestore)**
+
+---
+
+## 🌐 Enlaces Oficiales de Producción
+
+* **Aplicación Móvil / Web (Flutter Web):** [https://gestor-inv-2604190050.web.app](https://gestor-inv-2604190050.web.app)
+* **Portal Administrativo y Despacho Logístico (HTML/JS):** [https://gestor-inv-2604190050.web.app/docs/](https://gestor-inv-2604190050.web.app/docs/)
 
 ---
 
@@ -15,97 +26,75 @@ Una aplicación móvil y web multiplataforma desarrollada en **Flutter** para la
 
 ## 🚀 Características Clave Implementadas
 
-### 🔑 1. Reglas de Seguridad de Firestore (Role-Based Access Control)
-Configuración robusta en [firestore.rules](firestore.rules) para proteger las colecciones según el rol del usuario autenticado:
-* **Admin**: Acceso completo de lectura y escritura a todo el sistema.
-* **Operador**: Acceso completo a inventarios, pedidos y clientes; lectura de estadísticas operativas.
-* **Inversionista**: Acceso de lectura a estadísticas financieras de alto nivel (Dashboards).
-* **Comprador / Distribuidor**: Solo lectura de catálogo y creación de pedidos propios.
+### 🔑 1. Control de Acceso Basado en Roles (RBAC) y Seguridad en Firestore
+Configuración robusta y testeada de reglas de seguridad en [firestore.rules](firestore.rules):
+* **Admin**: Control absoluto sobre productos, movimientos de stock, tandas e historial de pedidos.
+* **Comprador / Distribuidor**: Solo lectura del catálogo de productos y acceso de lectura/escritura únicamente a sus pedidos individuales (`comprador_id == request.auth.uid`).
 
 ### 📝 2. Bitácora de Auditoría en Tiempo Real
-Cada creación, modificación o eliminación de productos en el catálogo registra automáticamente una traza detallada en la colección `/inventario_movimientos` incluyendo:
-* ID del producto y nombre.
-* Acción realizada (Creación, Edición, Eliminación).
-* Valores anteriores y nuevos para control de stock.
-* Usuario responsable del cambio y fecha/hora exacta.
+Monitoreo automático de cada modificación en el inventario. Las acciones de creación, edición y eliminación de productos escriben automáticamente registros detallados en la colección `/inventario_movimientos`, registrando los valores previos y nuevos de stock, el usuario responsable y la fecha exacta.
 
-### 🗺️ 3. Mapas Premium con Mapbox, Rutas 3D y Geocercas Simuladas
-Integración completa de geolocalización en tiempo real utilizando la API y estilo oscuro de **Mapbox**:
-* **Ruta de Tránsito**: Trazado inteligente de calles desde la ubicación del usuario a la Tienda de Comercializadora Aly (evitando CORS).
-* **Geocerca de Arribo (500m / 200m)**: Simulación interactiva de entrada al perímetro de la tienda mediante un botón satelital cyan, disparando una notificación local push y alerta visual para preparar las herramientas.
-* **Alineación 3D y Controles de Cámara**: Permite cambiar la perspectiva del mapa y recentrar con facilidad.
+### 🗺️ 3. Mapas Inteligentes y Ruteo Dinámico (Mapbox API)
+Integración de mapas interactivos con estilo nocturno personalizado:
+* **Pin de Despacho Logístico**: El comprador puede colocar un marcador directo en el mapa para marcar el sitio exacto de la obra de construcción.
+* **Cálculo de Rutas Reales**: Mapbox Directions API traza la ruta geodésica, calculando la distancia y tiempo estimado de tránsito de Huancayo.
+* **Simulador de Delivery Activo**: Un camión animado se desplaza por el mapa siguiendo la ruta trazada y envía notificaciones push locales al llegar al destino.
+* **Sincronización de Estado**: Al llegar el camión, la aplicación actualiza automáticamente el estado del pedido en la base de datos de Firestore de `pendiente` a `entregado` de manera inmediata.
 
-### 📄 4. Facturación Digital con Generación Real de PDF
-Pasarela de pagos con tarjeta de crédito interactiva 3D (giro automático al ingresar CVV) conectada a Firebase.
-* Genera una boleta electrónica real en formato **PDF** con el desglose de productos, cantidades, precios unitarios, IGV (18%) y monto total.
-* Integración con la librería `printing` para guardar localmente el documento o enviarlo a imprimir directamente desde la aplicación.
+### 🤖 4. Asistente IA Experto en Obras (Gemini API)
+Chatbot interactivo con el modelo generativo Gemini integrado de forma nativa:
+* **Asesor Técnico**: Configurado para realizar cálculos de dosificación de concreto y tarrajeo, torque para pernos y recomendación técnica de herramientas.
+* **Persistencia Privada**: El historial de chat de cada cuenta se guarda localmente usando claves indexadas por el UID de Firebase (`gemini_chat_history_${userId}`). Ningún usuario puede visualizar conversaciones de cuentas previas en el mismo dispositivo.
 
-### 🎙️ 5. Búsqueda por Voz y Modo Offline
-* **Búsqueda Asistida por Voz**: Micrófono interactivo en el catálogo de productos utilizando `speech_to_text` para dictar los nombres de herramientas o categorías.
-* **Banner de Conectividad**: Detección dinámica del estado de red con alertas en tiempo real en la parte superior cuando la aplicación entra en modo sin conexión.
+### 📄 5. Facturación Digital con Generador de PDF
+* Pasarela de pago interactiva con tarjeta 3D rotativa (giro automático al ingresar código CVV) conectada a Firebase.
+* Generación de boleta electrónica en **PDF** detallando la lista completa de productos comprados, precios unitarios, IGV (18%) y total, incluyendo el logotipo corporativo y el **RUC oficial de la empresa: 10432247657**.
 
-### 📊 6. Dashboards Premium con Glassmorphism
-Gráficos interactivos de ventas, ganancias e inversiones para administradores e inversionistas, diseñados con contenedores estilo vidrio esmerilado translúcido e íconos premium.
+### 💻 6. Diseño Responsivo Split-Screen en Login
+* Cuando el usuario ingresa a la versión Web (pantallas `>= 900px`), el login adopta un diseño dividido en dos columnas: el lado izquierdo muestra una presentación de la marca con descripción y su RUC, y el lado derecho muestra el formulario de autenticación rápida.
 
 ---
 
 ## 🛠️ Tecnologías y Librerías Utilizadas
-* **Flutter SDK**: Multiplataforma (Web & Mobile).
-* **Firebase Suite**: Authentication, Firestore, Cloud Messaging (FCM).
-* **Riverpod**: Gestión de estado reactiva y desacoplada.
-* **Flutter Map & Mapbox Tiles**: Visualización interactiva y geocodificación.
-* **Speech to Text**: Procesamiento de voz a texto.
-* **PDF & Printing**: Maquetación y exportación de boletas electrónicas.
-* **Google Fonts**: Tipografías modernas (*Outfit*, *Share Tech Mono*, etc.).
+* **Flutter SDK**: Desarrollo multiplataforma optimizado para Web & Mobile.
+* **Cloud Firestore**: Base de datos en tiempo real no relacional con persistencia local.
+* **Firebase Authentication**: Control de sesiones de usuario seguro y cifrado.
+* **Riverpod**: Gestor de estado reactivo y acoplado mediante inyección de dependencias.
+* **Flutter Map & Mapbox**: Renderizado de tiles cartográficos vectoriales y navegación.
+* **Speech to Text**: Búsqueda por voz dictada en el buscador del catálogo.
+* **PDF & Printing**: Maquetación y exportación de comprobantes de pago.
 
 ---
 
 ## ⚙️ Instrucciones de Configuración y Despliegue
 
-### 1. Requisitos Previos
-* Flutter SDK (versión `>= 3.11.4`).
-* Android SDK y Gradle configurados.
-* Node.js y Firebase CLI instalados para la gestión de reglas.
-
-### 2. Configurar Token de Mapbox
-El token oficial de Mapbox se encuentra configurado en la clase `MapaRutaScreen`:
-`pk.eyJ1Ijoiam9zZWJhYyIsImEiOiJjbW9pYTU0MW8wMGM4MnNvZ3NhOHo1NWM4In0.5Gw3E-h62DwI4ks5Y70cDw`
-
-### 3. Ejecutar en Web (Chrome)
-Para iniciar la aplicación en modo desarrollo web:
+### 1. Iniciar en Modo Desarrollo (Local)
+Asegúrate de contar con Flutter SDK en tu sistema y ejecuta:
 ```bash
 flutter run -d chrome
 ```
 
-### 4. Compilar APK (Android)
-Para generar el instalador de producción/release:
+### 2. Compilar para Producción (Android APK)
+Para generar el archivo instalador optimizado de la aplicación:
 ```bash
 flutter build apk --release
 ```
-El archivo resultante se encuentra en `build/app/outputs/flutter-apk/app-release.apk`.
+El instalador se guardará en `build/app/outputs/flutter-apk/app-release.apk`.
+
+### 3. Despliegue en Firebase Hosting
+Para compilar y subir los cambios a la web oficial:
+```bash
+flutter build web --release
+firebase deploy --only hosting --project gestor-inv-2604190050
+```
 
 ---
 
-## 📋 Ejercicio 1 — Levantamiento de Observaciones y Correcciones Aplicadas
+## 📋 Historial de Observaciones y Mejoras Aplicadas
 
-Para dar cumplimiento a la rúbrica de la entrega final, a continuación se detallan las observaciones recibidas y las correcciones de software implementadas:
-
-### 1. Observación: El Ruteo Inicial no ingresaba directamente al Catálogo
-* **Detalle:** Al iniciar la aplicación con sesión activa (Autologin) o al realizar un Login manual/biométrico, se redirigía a una pantalla de inicio neutral (`HomeScreen`) en lugar del catálogo.
-* **Corrección:** Modificamos la navegación en [main.dart](lib/main.dart), [login_screen.dart](lib/presentation/screens/login_screen.dart) y [splash_screen.dart](lib/presentation/screens/splash_screen.dart). Ahora el flujo redirecciona directamente al usuario comprador a `CatalogoScreen` con su rol dinámico.
-
-### 2. Observación: Error en Registro de Usuarios y falta de Seguridad en Pedidos
-* **Detalle:** El registro de cuentas nuevas (`signUp`) generaba una excepción de seguridad de Firebase Firestore al evaluar recursivamente la regla `getUserRole()` antes de que el perfil de usuario existiera. Además, cualquier usuario logueado podía leer y escribir pedidos ajenos.
-* **Corrección:** 
-  * Modificamos [firestore.rules](firestore.rules) agregando comprobaciones `exists()` en `getUserRole()` y dividiendo la regla `/users` en permisos específicos de `create` y `update`.
-  * Reforzamos la seguridad de `/pedidos` restringiendo la lectura y escritura para que los compradores solo puedan acceder a los registros donde `comprador_id == request.auth.uid`.
-  * Modificamos `getPedidos` en [firestore_service.dart](lib/data/services/firestore_service.dart) para filtrar los pedidos de forma nativa por UID del comprador y realizar el ordenamiento cronológico en memoria, evitando requerir índices complejos de Firebase.
-
-### 3. Observación: El Carrito de compras se mezclaba entre cuentas
-* **Detalle:** Si un usuario agregaba productos al carrito, cerraba sesión e ingresaba con otra cuenta en el mismo dispositivo, los ítems agregados anteriormente persistían.
-* **Corrección:** Adaptamos los modelos de datos de productos y carrito para admitir serialización JSON. En [cart_provider.dart](lib/presentation/providers/cart_provider.dart) rediseñamos el gestor de estado para que `cartProvider` escuche a `authStateProvider` y cargue/guarde el carrito individualmente desde `SharedPreferences` usando una clave única (`cart_${userId}`). Al desloguearse, el carrito se limpia en memoria instantáneamente.
-
-### 4. Observación: Glitch de Foco en pasarela de pagos (CVV)
-* **Detalle:** El teclado de la tarjeta en la pasarela de pagos perdía el foco tras digitar cada número del CVV, interrumpiendo la usabilidad.
-* **Corrección:** Corregimos la inicialización de `FocusNode` en [payment_gateway_screen.dart](lib/presentation/screens/payment_gateway_screen.dart), moviendo la variable a nivel de clase de estado persistente (`_cvvFocusNode`) y liberándola en `dispose()`.
-
+Para el cumplimiento del puntaje sobresaliente de la consigna final, se implementaron las siguientes correcciones de software:
+1. **Redirección Directa al Catálogo**: El autologin y la autenticación ahora redirigen directamente al usuario comprador al `CatalogoScreen` eliminando pasos innecesarios.
+2. **Seguridad y Privacidad de Datos**: Se reforzó `firestore.rules` limitando consultas y aislando carritos de compra y conversaciones con la IA por identificador único de usuario (`userId`).
+3. **FocusNode en CVV**: Se corrigió la pérdida de foco en la pasarela de pagos al ingresar datos de la tarjeta.
+4. **Decodificador de Rutas Seguro en Web**: Se adaptó el decodificador de polilíneas para soportar listas de coordenadas GeoJSON directamente en Flutter Web en producción, solucionando excepciones de tiempo de ejecución (`charCodeAt` / `RangeError`).
+5. **PDF Completos con Logo y RUC**: Se corrigió la boleta del checkout para que desglose el listado real de productos y se incorporó el logo corporativo de Comercializadora Aly en las boletas del historial.
