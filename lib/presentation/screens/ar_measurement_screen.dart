@@ -54,28 +54,28 @@ class _ArMeasurementScreenState extends ConsumerState<ArMeasurementScreen> {
     {
       'name': 'Nivelador Láser Aly Pro',
       'icon': '🚨',
-      'image_url': 'https://i.imgur.com/8Qp4R8G.png',
+      'image_url': 'assets/images/ar_laser_nivelador.png',
       'description': 'Láser autonivelante de 360 grados para previsualizar alineaciones en obra.',
       'size': '25 x 12 cm',
     },
     {
       'name': 'Rotomartillo Aly Torque-X',
       'icon': '🔨',
-      'image_url': 'https://i.imgur.com/BfA2l1M.png',
+      'image_url': 'assets/images/ar_rotomartillo.png',
       'description': 'Rotomartillo de alta potencia para perforaciones en concreto.',
       'size': '45 x 20 cm',
     },
     {
       'name': 'Nivelador Digital Industrial Aly',
       'icon': '📐',
-      'image_url': 'https://i.imgur.com/K5U0P1w.png',
+      'image_url': 'assets/images/ar_nivelador_digital.png',
       'description': 'Nivel digital con sensor magnético de alta precisión.',
       'size': '15 x 5 cm',
     },
     {
       'name': 'Sierra Circular Pro-Aly',
       'icon': '🪚',
-      'image_url': 'https://i.imgur.com/J3t5C8g.png',
+      'image_url': 'assets/images/ar_sierra_circular.png',
       'description': 'Sierra circular de alto torque con guías de corte láser.',
       'size': '35 x 25 cm',
     }
@@ -435,7 +435,7 @@ class _ArMeasurementScreenState extends ConsumerState<ArMeasurementScreen> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       prod['image_url'] != null
-                          ? Image.network(
+                          ? Image.asset(
                               prod['image_url'] as String,
                               height: 60,
                               fit: BoxFit.contain,
