@@ -1,6 +1,25 @@
-// ==========================================================================
-// Aly Industrial - Premium Web Application Logic
-// ==========================================================================
+// --- Firebase Config & Init ---
+const firebaseConfig = {
+  apiKey: 'AIzaSyB93Li47oLx1ZkTWVEFO8pUP6BVTXzV6Ug',
+  appId: '1:679642292116:web:d23fd1f4b0a64e0b48f981',
+  messagingSenderId: '679642292116',
+  projectId: 'gestor-inv-2604190050',
+  authDomain: 'gestor-inv-2604190050.firebaseapp.com',
+  storageBucket: 'gestor-inv-2604190050.firebasestorage.app'
+};
+
+let db = null;
+try {
+  if (typeof firebase !== 'undefined') {
+    firebase.initializeApp(firebaseConfig);
+    db = firebase.firestore();
+    console.log('✅ Firebase initialized successfully in Web Client.');
+  } else {
+    console.warn('⚠️ Firebase script not loaded. Running in local mock mode.');
+  }
+} catch (e) {
+  console.error('❌ Failed to initialize Firebase:', e);
+}
 
 // --- App State ---
 let cart = [];
@@ -15,8 +34,8 @@ let activeFilters = {
 const tiendaCoords = { x: 45, y: 40 }; // Centro en el mapa (porcentaje)
 let userCoords = { x: 60, y: 60 };
 
-// Catálogo de Productos Oficiales
-const products = [
+// Catálogo de Productos Oficiales (Offline Default)
+const defaultProducts = [
   { id: 'PROD-001', nombre: 'Electrodo de Soldadura 6011 3/32" (1kg)', categoria: 'Abrasivos y Consumibles', subcategoria: 'Soldadura', precioUnitario: 13.00, unidad: 'kg', disponible: true, imagenUrl: 'https://images.unsplash.com/photo-1504148455328-c376907d081c?w=500&auto=format&fit=crop' },
   { id: 'PROD-002', nombre: 'Rotomartillo Aly Industrial 800W', categoria: 'Herramientas Eléctricas', subcategoria: 'Perforación', precioUnitario: 249.00, unidad: 'un.', disponible: true, imagenUrl: 'https://images.unsplash.com/photo-1504148455328-c376907d081c?w=500&auto=format&fit=crop' },
   { id: 'PROD-003', nombre: 'Nivelador Digital de Burbuja Aly Pro', categoria: 'Instrumentos de Medición', subcategoria: 'Nivelación', precioUnitario: 85.00, unidad: 'un.', disponible: true, imagenUrl: 'https://images.unsplash.com/photo-1534224039826-c7a0dea0e66a?w=500&auto=format&fit=crop' },
@@ -26,6 +45,8 @@ const products = [
   { id: 'PROD-007', nombre: 'Casco de Seguridad Aly con Suspensión', categoria: 'Equipos de Protección', subcategoria: 'Seguridad', precioUnitario: 22.00, unidad: 'un.', disponible: true, imagenUrl: 'https://images.unsplash.com/photo-1589939705384-5185137a7f0f?w=500&auto=format&fit=crop' },
   { id: 'PROD-008', nombre: 'Cinta Métrica Industrial Aly (5m)', categoria: 'Instrumentos de Medición', subcategoria: 'Medición', precioUnitario: 12.50, unidad: 'un.', disponible: false, imagenUrl: 'https://images.unsplash.com/photo-1534224039826-c7a0dea0e66a?w=500&auto=format&fit=crop' }
 ];
+
+let products = [];
 
 // Conversaciones simuladas del chatbot
 const chatResponses = {
@@ -43,26 +64,108 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function initApp() {
-  // Load mock database from localStorage
+  // Load mock database from localStorage as default fallback
+  loadMockOrders();
+
+  if (db) {
+    // Sync with Firestore
+    listenToCatalog();
+    listenToOrders();
+  } else {
+    // Fallback static load
+    products = defaultProducts;
+    renderDashboard();
+    renderCatalog();
+    renderOrdersTable();
+    renderInvoicesTable();
+    initCharts();
+  }
+  renderChatbot();
+}
+
+function loadMockOrders() {
   const savedOrders = localStorage.getItem('aly_orders');
   if (savedOrders) {
     orders = JSON.parse(savedOrders);
   } else {
-    // Populate default history
     orders = [
       { id: 'BOL-B001-382903', fecha: '28/06/2026 10:15', producto: 'Electrodo de Soldadura 6011 3/32" (1kg)', total: 26.00, estado: 'entregado', delivery: '12 min', items: [{ nombre: 'Electrodo de Soldadura 6011 3/32" (1kg)', cantidad: 2, precio: 13.00 }] },
       { id: 'BOL-B001-390293', fecha: '29/06/2026 15:44', producto: 'Rotomartillo Aly Industrial 800W y 1 más', total: 277.50, estado: 'entregado', delivery: '9 min', items: [{ nombre: 'Rotomartillo Aly Industrial 800W', cantidad: 1, precio: 249.00 }, { nombre: 'Cemento Industrial Extra Forte Aly (42.5kg)', cantidad: 1, precio: 28.50 }] }
     ];
     localStorage.setItem('aly_orders', JSON.stringify(orders));
   }
+}
 
-  // Initial UI Render
-  renderDashboard();
-  renderCatalog();
-  renderOrdersTable();
-  renderInvoicesTable();
-  initCharts();
-  renderChatbot();
+function listenToCatalog() {
+  db.collection('catalogo_productos').onSnapshot(snapshot => {
+    products = [];
+    snapshot.forEach(doc => {
+      const data = doc.data();
+      products.push({
+        id: doc.id,
+        nombre: data.nombre || '',
+        categoria: data.categoria || '',
+        subcategoria: data.subcategoria || '',
+        precioUnitario: parseFloat(data.precioUnitario || data.precio_unitario || 0),
+        unidad: data.unidad || 'un.',
+        disponible: data.disponible !== false,
+        imagenUrl: data.imagenUrl || data.imagen_url || 'https://images.unsplash.com/photo-1504148455328-c376907d081c?w=500&auto=format&fit=crop'
+      });
+    });
+    if (products.length === 0) {
+      products = defaultProducts;
+    }
+    renderCatalog();
+  }, error => {
+    console.error('Firestore catalog listen error:', error);
+    products = defaultProducts;
+    renderCatalog();
+  });
+}
+
+function listenToOrders() {
+  db.collection('pedidos').orderBy('fecha_pedido', 'desc').onSnapshot(snapshot => {
+    orders = [];
+    snapshot.forEach(doc => {
+      const data = doc.data();
+      let dateStr = 'Reciente';
+      if (data.fecha_pedido) {
+        const d = data.fecha_pedido.toDate ? data.fecha_pedido.toDate() : new Date(data.fecha_pedido);
+        dateStr = d.toLocaleDateString('es-PE') + ' ' + d.toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' });
+      }
+
+      let itemsList = [];
+      if (data.items) {
+        itemsList = data.items.map(item => ({
+          nombre: item.producto_nombre || item.nombre || 'Producto',
+          cantidad: parseInt(item.cantidad || 0),
+          precio: parseFloat(item.precio_unitario || item.precio || 0)
+        }));
+      }
+
+      orders.push({
+        id: data.nro_boleta || doc.id,
+        fecha: dateStr,
+        producto: data.producto_nombre || 'Producto General',
+        total: parseFloat(data.capital_invertido || 0),
+        estado: data.estado || 'pendiente',
+        delivery: data.duracion || '10 min',
+        items: itemsList
+      });
+    });
+
+    renderDashboard();
+    renderOrdersTable();
+    renderInvoicesTable();
+    updateChartsData();
+  }, error => {
+    console.error('Firestore orders listen error:', error);
+    loadMockOrders();
+    renderDashboard();
+    renderOrdersTable();
+    renderInvoicesTable();
+    updateChartsData();
+  });
 }
 
 function registerEvents() {
@@ -527,55 +630,90 @@ function processCheckout() {
   const total = cart.reduce((sum, item) => sum + (item.product.precioUnitario * item.quantity), 0);
   const distance = document.getElementById('calc-distance').innerText;
   const duration = document.getElementById('calc-duration').innerText;
+  const address = document.getElementById('manual-address-input').value || 'Ubicación GPS';
 
-  setTimeout(() => {
-    // Generate new random real correlation boleta code
-    const boletaCode = `BOL-B001-${Math.floor(Math.random() * 899999 + 100000)}`;
-    const formattedDate = new Date().toLocaleDateString('es-PE') + ' ' + new Date().toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' });
+  const boletaCode = `BOL-B001-${Math.floor(Math.random() * 899999 + 100000)}`;
+  const formattedDate = new Date().toLocaleDateString('es-PE') + ' ' + new Date().toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' });
 
-    // Prepare order details
-    const productStr = cart.length === 1 
-        ? cart[0].product.nombre 
-        : `${cart[0].product.nombre} y ${cart.length - 1} más`;
+  // Prepare order details
+  const productStr = cart.length === 1 
+      ? cart[0].product.nombre 
+      : `${cart[0].product.nombre} y ${cart.length - 1} más`;
 
-    const newOrder = {
-      id: boletaCode,
-      fecha: formattedDate,
-      producto: productStr,
-      total: total,
+  // Local/Offline Fallback Object
+  const offlineOrder = {
+    id: boletaCode,
+    fecha: formattedDate,
+    producto: productStr,
+    total: total,
+    estado: 'pendiente',
+    delivery: duration,
+    items: cart.map(i => ({ nombre: i.product.nombre, cantidad: i.quantity, precio: i.product.precioUnitario }))
+  };
+
+  const executeOfflineCheckout = () => {
+    orders.push(offlineOrder);
+    localStorage.setItem('aly_orders', JSON.stringify(orders));
+    finalizeCheckoutUI(boletaCode, formattedDate, total, duration);
+  };
+
+  // If Firebase is initialized, push directly to Firestore!
+  if (db) {
+    const newOrderData = {
+      nro_boleta: boletaCode,
+      fecha_pedido: firebase.firestore.Timestamp.now(),
+      producto_nombre: productStr,
+      capital_invertido: total,
       estado: 'pendiente',
-      delivery: duration,
-      items: cart.map(i => ({ nombre: i.product.nombre, cantidad: i.quantity, precio: i.product.precioUnitario }))
+      duracion: duration,
+      distancia: distance,
+      direccion: address,
+      comprador_id: 'TfI7Y5n1z7Y6U8k6Z9Lp', // Maria Lopez ID in users
+      comprador_nombre: 'María López',
+      items: cart.map(i => ({
+        producto_id: i.product.id,
+        producto_nombre: i.product.nombre,
+        cantidad: i.quantity,
+        precio_unitario: i.product.precioUnitario,
+        subtotal: i.product.precioUnitario * i.quantity
+      })),
+      coordenadas_gps: `${userCoords.x.toFixed(6)},${userCoords.y.toFixed(6)}`
     };
 
-    // Save to orders db
-    orders.push(newOrder);
-    localStorage.setItem('aly_orders', JSON.stringify(orders));
+    db.collection('pedidos').add(newOrderData).then(() => {
+      finalizeCheckoutUI(boletaCode, formattedDate, total, duration);
+    }).catch(err => {
+      console.error('Error writing order to Firestore. Falling back to offline local mode:', err);
+      executeOfflineCheckout();
+    });
+  } else {
+    executeOfflineCheckout();
+  }
+}
 
-    // Clear cart
-    cart = [];
-    updateCartUI();
+function finalizeCheckoutUI(boletaCode, formattedDate, total, duration) {
+  // Clear cart
+  cart = [];
+  updateCartUI();
 
-    // Re-render UI
-    renderDashboard();
-    renderOrdersTable();
-    renderInvoicesTable();
-    updateChartsData();
+  // Re-render local UI
+  renderDashboard();
+  renderOrdersTable();
+  renderInvoicesTable();
+  updateChartsData();
 
-    // Show Success Modal
-    document.getElementById('checkout-modal').style.display = 'none';
-    document.getElementById('btn-pay-action').disabled = false;
-    document.getElementById('btn-pay-action').innerText = 'CONFIRMAR Y PAGAR';
+  // Show Success Modal
+  document.getElementById('checkout-modal').style.display = 'none';
+  document.getElementById('btn-pay-action').disabled = false;
+  document.getElementById('btn-pay-action').innerText = 'CONFIRMAR Y PAGAR';
 
-    // Populate receipt details
-    document.getElementById('receipt-code').innerText = boletaCode;
-    document.getElementById('receipt-date').innerText = formattedDate;
-    document.getElementById('receipt-total').innerText = `S/ ${total.toFixed(2)}`;
-    document.getElementById('receipt-delivery').innerText = duration;
-    
-    document.getElementById('receipt-modal').style.display = 'block';
-
-  }, 1500);
+  // Populate receipt details
+  document.getElementById('receipt-code').innerText = boletaCode;
+  document.getElementById('receipt-date').innerText = formattedDate;
+  document.getElementById('receipt-total').innerText = `S/ ${total.toFixed(2)}`;
+  document.getElementById('receipt-delivery').innerText = duration;
+  
+  document.getElementById('receipt-modal').style.display = 'block';
 }
 
 // --- Orders History Table ---

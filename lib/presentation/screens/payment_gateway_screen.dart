@@ -1,4 +1,5 @@
 import 'dart:math';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -53,31 +54,51 @@ class _PaymentGatewayScreenState extends ConsumerState<PaymentGatewayScreen> wit
   bool _calculatingRoute = false;
 
   List<LatLng> _decodePolyline(String encoded) {
+    if (encoded.startsWith('[')) {
+      try {
+        final List<dynamic> coords = jsonDecode(encoded);
+        return coords.map((c) {
+          final List<dynamic> point = c as List<dynamic>;
+          // Mapbox returns [lng, lat] for geojson coordinates
+          return LatLng(point[1].toDouble(), point[0].toDouble());
+        }).toList();
+      } catch (e) {
+        debugPrint('Error parsing GeoJSON coordinate list: $e');
+        return [];
+      }
+    }
+
     List<LatLng> points = [];
     int index = 0, len = encoded.length;
     int lat = 0, lng = 0;
 
-    while (index < len) {
-      int b, shift = 0, result = 0;
-      do {
-        b = encoded.codeUnitAt(index++) - 63;
-        result |= (b & 0x1f) << shift;
-        shift += 5;
-      } while (b >= 0x20);
-      int dlat = ((result & 1) != 0 ? ~(result >> 1) : (result >> 1));
-      lat += dlat;
+    try {
+      while (index < len) {
+        int b, shift = 0, result = 0;
+        do {
+          if (index >= len) return points;
+          b = encoded.codeUnitAt(index++) - 63;
+          result |= (b & 0x1f) << shift;
+          shift += 5;
+        } while (b >= 0x20);
+        int dlat = ((result & 1) != 0 ? ~(result >> 1) : (result >> 1));
+        lat += dlat;
 
-      shift = 0;
-      result = 0;
-      do {
-        b = encoded.codeUnitAt(index++) - 63;
-        result |= (b & 0x1f) << shift;
-        shift += 5;
-      } while (b >= 0x20);
-      int dlng = ((result & 1) != 0 ? ~(result >> 1) : (result >> 1));
-      lng += dlng;
+        shift = 0;
+        result = 0;
+        do {
+          if (index >= len) return points;
+          b = encoded.codeUnitAt(index++) - 63;
+          result |= (b & 0x1f) << shift;
+          shift += 5;
+        } while (b >= 0x20);
+        int dlng = ((result & 1) != 0 ? ~(result >> 1) : (result >> 1));
+        lng += dlng;
 
-      points.add(LatLng(lat / 1E5, lng / 1E5));
+        points.add(LatLng(lat / 1E5, lng / 1E5));
+      }
+    } catch (e) {
+      debugPrint('Error decoding polyline: $e');
     }
     return points;
   }
