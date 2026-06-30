@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 import 'dart:typed_data';
@@ -17,6 +18,8 @@ import 'package:gestor_invetarios_pedidos_app/presentation/providers/cart_provid
 import 'package:gestor_invetarios_pedidos_app/data/models/catalogo_producto.dart';
 import 'package:gestor_invetarios_pedidos_app/data/services/gemini_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class ArMeasurementScreen extends ConsumerStatefulWidget {
   const ArMeasurementScreen({super.key});
@@ -29,6 +32,7 @@ class _ArMeasurementScreenState extends ConsumerState<ArMeasurementScreen> {
   StreamSubscription? _accelerometerSubscription;
   File? _backgroundImage;
   Uint8List? _webImageBytes;
+  String? _base64BackgroundImage;
   bool _isEstimating = false;
   final ImagePicker _picker = ImagePicker();
 
@@ -50,24 +54,28 @@ class _ArMeasurementScreenState extends ConsumerState<ArMeasurementScreen> {
     {
       'name': 'Nivelador Láser Aly Pro',
       'icon': '🚨',
-      'description': 'Láser autonivelante de 360 grados para obras industriales.',
+      'image_url': 'https://i.imgur.com/8Qp4R8G.png',
+      'description': 'Láser autonivelante de 360 grados para previsualizar alineaciones en obra.',
       'size': '25 x 12 cm',
     },
     {
       'name': 'Rotomartillo Aly Torque-X',
       'icon': '🔨',
+      'image_url': 'https://i.imgur.com/BfA2l1M.png',
       'description': 'Rotomartillo de alta potencia para perforaciones en concreto.',
       'size': '45 x 20 cm',
     },
     {
       'name': 'Nivelador Digital Industrial Aly',
       'icon': '📐',
+      'image_url': 'https://i.imgur.com/K5U0P1w.png',
       'description': 'Nivel digital con sensor magnético de alta precisión.',
       'size': '15 x 5 cm',
     },
     {
       'name': 'Sierra Circular Pro-Aly',
       'icon': '🪚',
+      'image_url': 'https://i.imgur.com/J3t5C8g.png',
       'description': 'Sierra circular de alto torque con guías de corte láser.',
       'size': '35 x 25 cm',
     }
@@ -177,18 +185,17 @@ class _ArMeasurementScreenState extends ConsumerState<ArMeasurementScreen> {
         preferredCameraDevice: CameraDevice.rear,
       );
       if (file != null) {
-        if (kIsWeb) {
-          final bytes = await file.readAsBytes();
-          setState(() {
+        final bytes = await file.readAsBytes();
+        setState(() {
+          _base64BackgroundImage = base64Encode(bytes);
+          if (kIsWeb) {
             _webImageBytes = bytes;
             _backgroundImage = null;
-          });
-        } else {
-          setState(() {
+          } else {
             _backgroundImage = File(file.path);
             _webImageBytes = null;
-          });
-        }
+          }
+        });
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -233,6 +240,11 @@ class _ArMeasurementScreenState extends ConsumerState<ArMeasurementScreen> {
         ),
       ),
       actions: [
+        IconButton(
+          icon: const Icon(Icons.collections_bookmark_rounded, color: AppTheme.accentOrange),
+          onPressed: _verBitacoraMediciones,
+          tooltip: 'Ver Bitácora de Obra',
+        ),
         IconButton(
           icon: const Icon(Icons.flip_camera_ios_rounded, color: AppTheme.accentOrange),
           onPressed: _pickCameraBackground,
@@ -408,24 +420,34 @@ class _ArMeasurementScreenState extends ConsumerState<ArMeasurementScreen> {
                   width: 140,
                   height: 140,
                   decoration: BoxDecoration(
-                    color: AppTheme.surfaceDark.withOpacity(0.85),
+                    color: Colors.transparent,
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: AppTheme.accentOrange, width: 2),
+                    border: Border.all(color: AppTheme.accentOrange.withOpacity(0.8), width: 1.5),
                     boxShadow: [
                       BoxShadow(
-                        color: AppTheme.accentOrange.withOpacity(0.3),
-                        blurRadius: 15,
-                        spreadRadius: 2,
+                        color: AppTheme.accentOrange.withOpacity(0.15),
+                        blurRadius: 12,
+                        spreadRadius: 1,
                       ),
                     ],
                   ),
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Text(
-                        prod['icon'] as String,
-                        style: const TextStyle(fontSize: 48),
-                      ),
+                      prod['image_url'] != null
+                          ? Image.network(
+                              prod['image_url'] as String,
+                              height: 60,
+                              fit: BoxFit.contain,
+                              errorBuilder: (context, error, stackTrace) => Text(
+                                prod['icon'] as String,
+                                style: const TextStyle(fontSize: 48),
+                              ),
+                            )
+                          : Text(
+                              prod['icon'] as String,
+                              style: const TextStyle(fontSize: 48),
+                            ),
                       const SizedBox(height: 8),
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 8.0),
@@ -435,6 +457,13 @@ class _ArMeasurementScreenState extends ConsumerState<ArMeasurementScreen> {
                             color: Colors.white,
                             fontSize: 8,
                             fontWeight: FontWeight.bold,
+                            shadows: [
+                              const Shadow(
+                                color: Colors.black,
+                                blurRadius: 4,
+                                offset: Offset(0, 1),
+                              ),
+                            ],
                           ),
                           textAlign: TextAlign.center,
                           maxLines: 2,
@@ -444,7 +473,13 @@ class _ArMeasurementScreenState extends ConsumerState<ArMeasurementScreen> {
                       const SizedBox(height: 2),
                       Text(
                         prod['size'] as String,
-                        style: const TextStyle(color: AppTheme.textGray, fontSize: 8),
+                        style: const TextStyle(
+                          color: AppTheme.textGray,
+                          fontSize: 8,
+                          shadows: [
+                            Shadow(color: Colors.black, blurRadius: 2),
+                          ],
+                        ),
                       ),
                     ],
                   ),
@@ -706,20 +741,83 @@ class _ArMeasurementScreenState extends ConsumerState<ArMeasurementScreen> {
   }
 
   void _guardarCapturaObra() async {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Inicia sesión para guardar tu medición en la bitácora.')),
+        );
+      }
+      return;
+    }
+
+    if (_base64BackgroundImage == null) {
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          backgroundColor: AppTheme.surfaceDark,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: BorderSide(color: Colors.white.withOpacity(0.08)),
+          ),
+          title: const Row(
+            children: [
+              Icon(Icons.camera_alt_outlined, color: AppTheme.accentOrange),
+              SizedBox(width: 10),
+              Text('Fondo Requerido', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
+            ],
+          ),
+          content: const Text(
+            'Por favor, tome una foto de su pared con la cámara 📷 o cargue una de la galería antes de guardar la obra en tu bitácora.',
+            style: TextStyle(color: AppTheme.textGray, fontSize: 12, height: 1.4),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(ctx);
+                _pickCameraBackground();
+              },
+              child: const Text('CARGAR FOTO', style: TextStyle(color: AppTheme.accentOrange)),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('CANCELAR', style: TextStyle(color: AppTheme.textGray)),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+
     try {
+      // 1. Guardar localmente en SharedPreferences (como registro de fallback)
       final prefs = await SharedPreferences.getInstance();
       final List<String> list = prefs.getStringList('saved_ar_projects') ?? [];
-      
       final String record = 'Proyecto Medición - ${_selectedProduct} | Ángulo: ${_pitch.toStringAsFixed(1)}° | Escala: ${_productScale.toStringAsFixed(2)}x | Fecha: ${DateTime.now().toLocal().toString().substring(0, 16)}';
       list.add(record);
-      
       await prefs.setStringList('saved_ar_projects', list);
-      
+
+      // 2. Guardar en Firestore de forma estructurada para el cliente actual
+      await FirebaseFirestore.instance.collection('mediciones_ar').add({
+        'usuario_id': currentUser.uid,
+        'usuario_nombre': currentUser.displayName ?? currentUser.email ?? 'Cliente Aly',
+        'producto_nombre': _selectedProduct,
+        'pitch': _pitch,
+        'roll': _roll,
+        'escala': _productScale,
+        'fecha': DateTime.now().toIso8601String(),
+        'imagen_base64': _base64BackgroundImage,
+      });
+
       if (mounted) {
         showDialog(
           context: context,
           builder: (context) => AlertDialog(
             backgroundColor: AppTheme.surfaceDark,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+              side: BorderSide(color: Colors.white.withOpacity(0.08)),
+            ),
             title: const Row(
               children: [
                 Icon(Icons.check_circle_rounded, color: AppTheme.successGreen),
@@ -728,7 +826,7 @@ class _ArMeasurementScreenState extends ConsumerState<ArMeasurementScreen> {
               ],
             ),
             content: Text(
-              '¡Medición de ${_selectedProduct} guardada con éxito!\n\nSe ha guardado localmente en tu Bitácora de Obra (SharedPreferences del dispositivo).\n\nRegistro: "$record"',
+              '¡Medición de ${_selectedProduct} guardada con éxito en la Bitácora de Obra de tu cuenta!\n\nRegistro: "$record"',
               style: const TextStyle(color: AppTheme.textGray, fontSize: 12, height: 1.4),
             ),
             actions: [
@@ -742,6 +840,267 @@ class _ArMeasurementScreenState extends ConsumerState<ArMeasurementScreen> {
       }
     } catch (e) {
       debugPrint('Error guardando proyecto: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error al guardar medición en la nube: $e')),
+        );
+      }
+    }
+  }
+
+  void _verBitacoraMediciones() {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Inicia sesión para ver tu bitácora de obra.')),
+      );
+      return;
+    }
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) => DraggableScrollableSheet(
+        initialChildSize: 0.85,
+        maxChildSize: 0.95,
+        minChildSize: 0.5,
+        builder: (context, scrollController) => Container(
+          decoration: BoxDecoration(
+            color: AppTheme.surfaceDark,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+            border: Border.all(color: Colors.white.withOpacity(0.06)),
+          ),
+          child: Column(
+            children: [
+              const SizedBox(height: 12),
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: Row(
+                  children: [
+                    const Icon(Icons.collections_bookmark_rounded, color: AppTheme.accentOrange),
+                    const SizedBox(width: 12),
+                    Text(
+                      'MI BITÁCORA DE OBRA AR',
+                      style: GoogleFonts.outfit(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w900,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              Expanded(
+                child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                  stream: FirebaseFirestore.instance
+                      .collection('mediciones_ar')
+                      .where('usuario_id', isEqualTo: currentUser.uid)
+                      .orderBy('fecha', descending: true)
+                      .snapshots(),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator(color: AppTheme.accentOrange));
+                    }
+                    if (snapshot.hasError) {
+                      return Center(child: Text('Error: ${snapshot.error}', style: const TextStyle(color: Colors.red)));
+                    }
+                    
+                    final docs = snapshot.data?.docs ?? [];
+                    if (docs.isEmpty) {
+                      return const Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text('📐', style: TextStyle(fontSize: 48)),
+                            SizedBox(height: 16),
+                            Text(
+                              'No tienes mediciones guardadas aún.',
+                              style: TextStyle(color: AppTheme.textGray, fontSize: 13),
+                            ),
+                          ],
+                        ),
+                      );
+                    }
+
+                    return ListView.separated(
+                      controller: scrollController,
+                      padding: const EdgeInsets.all(24),
+                      itemCount: docs.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 16),
+                      itemBuilder: (context, idx) {
+                        final data = docs[idx].data();
+                        final docId = docs[idx].id;
+                        final String prodName = data['producto_nombre'] ?? 'Herramienta';
+                        final double pitch = double.tryParse(data['pitch']?.toString() ?? '0.0') ?? 0.0;
+                        final double roll = double.tryParse(data['roll']?.toString() ?? '0.0') ?? 0.0;
+                        final double scale = double.tryParse(data['escala']?.toString() ?? '1.0') ?? 1.0;
+                        final String dateRaw = data['fecha'] ?? '';
+                        final String? imgBase64 = data['imagen_base64'];
+
+                        String dateStr = '';
+                        if (dateRaw.isNotEmpty) {
+                          try {
+                            final parsed = DateTime.parse(dateRaw);
+                            dateStr = '${parsed.day}/${parsed.month}/${parsed.year} ${parsed.hour.toString().padLeft(2, '0')}:${parsed.minute.toString().padLeft(2, '0')}';
+                          } catch (_) {
+                            dateStr = dateRaw;
+                          }
+                        }
+
+                        return Container(
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.02),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: Colors.white.withOpacity(0.04)),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              if (imgBase64 != null && imgBase64.isNotEmpty)
+                                Stack(
+                                  children: [
+                                    ClipRRect(
+                                      borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                                      child: Image.memory(
+                                        base64Decode(imgBase64),
+                                        height: 180,
+                                        width: double.infinity,
+                                        fit: BoxFit.cover,
+                                      ),
+                                    ),
+                                    Positioned.fill(
+                                      child: Container(
+                                        decoration: BoxDecoration(
+                                          gradient: LinearGradient(
+                                            begin: Alignment.topCenter,
+                                            end: Alignment.bottomCenter,
+                                            colors: [
+                                              Colors.black.withOpacity(0.4),
+                                              Colors.transparent,
+                                              Colors.black.withOpacity(0.7),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    Positioned(
+                                      top: 12,
+                                      right: 12,
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                        decoration: BoxDecoration(
+                                          color: AppTheme.accentOrange.withOpacity(0.8),
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                        child: Text(
+                                          'Escala: ${scale.toStringAsFixed(2)}x',
+                                          style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                                        ),
+                                      ),
+                                    ),
+                                    Positioned(
+                                      bottom: 12,
+                                      left: 12,
+                                      child: Row(
+                                        children: [
+                                          const Icon(Icons.screen_rotation_rounded, color: Colors.amber, size: 14),
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            'P: ${pitch.toStringAsFixed(1)}° | R: ${roll.toStringAsFixed(1)}°',
+                                            style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              Padding(
+                                padding: const EdgeInsets.all(16),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            prodName,
+                                            style: GoogleFonts.outfit(
+                                              color: Colors.white,
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 14,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            dateStr,
+                                            style: const TextStyle(color: AppTheme.textGray, fontSize: 10),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    IconButton(
+                                      onPressed: () => _borrarMedicion(docId),
+                                      icon: const Icon(Icons.delete_outline_rounded, color: AppTheme.errorRed, size: 20),
+                                      tooltip: 'Eliminar Medición',
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _borrarMedicion(String docId) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppTheme.surfaceDark,
+        title: const Text('ELIMINAR MEDICIÓN', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900)),
+        content: const Text('¿Estás seguro de que deseas eliminar esta medición de tu bitácora?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('CANCELAR')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.errorRed),
+            child: const Text('ELIMINAR'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      await FirebaseFirestore.instance.collection('mediciones_ar').doc(docId).delete();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Medición eliminada de la bitácora.'),
+            backgroundColor: AppTheme.successGreen,
+          ),
+        );
+      }
     }
   }
 

@@ -44,6 +44,118 @@ class _PaymentGatewayScreenState extends ConsumerState<PaymentGatewayScreen> wit
   bool _isCurrentLocationSelected = true;
   final _addressController = TextEditingController();
 
+  Future<void> _requestAndNotifyLocationPermission() async {
+    final bool? confirm = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppTheme.surfaceDark,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(color: Colors.white.withOpacity(0.08)),
+        ),
+        title: Row(
+          children: [
+            const Icon(Icons.location_on_rounded, color: AppTheme.accentOrange, size: 28),
+            const SizedBox(width: 10),
+            Text(
+              'PERMISO DE UBICACIÓN',
+              style: GoogleFonts.outfit(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+              ),
+            ),
+          ],
+        ),
+        content: const Text(
+          'Comercializadora Aly requiere acceso a tu ubicación GPS actual para calcular la ruta exacta de delivery en el mapa y permitirte realizar el seguimiento en vivo del camión de transporte al despachar tu pedido.',
+          style: TextStyle(color: AppTheme.textGray, fontSize: 12, height: 1.4),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('CANCELAR', style: TextStyle(color: AppTheme.textGray)),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.accentOrange,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              minimumSize: const Size(60, 36),
+            ),
+            child: const Text('PERMITIR', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) {
+      setState(() => _isCurrentLocationSelected = false);
+      return;
+    }
+
+    bool serviceEnabled;
+    LocationPermission permission;
+
+    try {
+      serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Por favor, activa el GPS de tu dispositivo.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        setState(() => _isCurrentLocationSelected = false);
+        return;
+      }
+
+      permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Permiso denegado. Se requiere ubicación para usar esta opción.'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+          setState(() => _isCurrentLocationSelected = false);
+          return;
+        }
+      }
+
+      if (permission == LocationPermission.deniedForever) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Permisos bloqueados en el sistema. Actívalos en Ajustes.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        setState(() => _isCurrentLocationSelected = false);
+        return;
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('¡Permiso concedido con éxito! Se utilizará tu GPS actual.'),
+            backgroundColor: AppTheme.successGreen,
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('Error solicitando permisos de ubicación en onChanged: $e');
+    }
+  }
+
   List<CartItem> _purchasedItems = [];
   double _purchasedTotal = 0.0;
 
@@ -1109,7 +1221,12 @@ class _PaymentGatewayScreenState extends ConsumerState<PaymentGatewayScreen> wit
                 subtitle: const Text('Requerirá permisos de geolocalización', style: TextStyle(color: AppTheme.textGray, fontSize: 11)),
                 activeColor: AppTheme.accentOrange,
                 onChanged: (val) {
-                  if (val != null) setState(() => _isCurrentLocationSelected = val);
+                  if (val != null) {
+                    setState(() => _isCurrentLocationSelected = val);
+                    if (val) {
+                      _requestAndNotifyLocationPermission();
+                    }
+                  }
                 },
               ),
               Divider(color: Colors.white.withOpacity(0.05), height: 1),

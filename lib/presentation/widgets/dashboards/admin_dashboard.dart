@@ -8,6 +8,7 @@ import 'package:gestor_invetarios_pedidos_app/core/utils/numeric_utils.dart';
 import 'package:gestor_invetarios_pedidos_app/presentation/widgets/common/custom_data_table.dart';
 import 'package:gestor_invetarios_pedidos_app/presentation/widgets/common/glass_container.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'dart:math';
 
 class AdminDashboard extends ConsumerStatefulWidget {
   final Map<String, dynamic> profile;
@@ -22,27 +23,93 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
 
   @override
   Widget build(BuildContext context) {
+    final ordersAsync = ref.watch(ordersStreamProvider);
+    final productsAsync = ref.watch(productsStreamProvider);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (_currentView == 'stats') _buildStatsView(context)
-        else _buildProductsView(context),
+        if (_currentView == 'stats')
+          ordersAsync.when(
+            data: (orders) => productsAsync.when(
+              data: (products) => _buildStatsView(context, orders, products.length),
+              loading: () => const Center(child: CircularProgressIndicator(color: AppTheme.accentOrange)),
+              error: (e, _) => Center(child: Text('Error: $e', style: const TextStyle(color: Colors.red))),
+            ),
+            loading: () => const Center(child: CircularProgressIndicator(color: AppTheme.accentOrange)),
+            error: (e, _) => Center(child: Text('Error: $e', style: const TextStyle(color: Colors.red))),
+          )
+        else
+          _buildProductsView(context),
       ],
     );
   }
 
-  Widget _buildStatsView(BuildContext context) {
+  Widget _buildStatsView(BuildContext context, List<Map<String, dynamic>> orders, int productCount) {
+    final int totalPedidos = orders.length;
+    
+    double totalVendido = 0.0;
+    double totalGananciaEsperada = 0.0;
+    for (var o in orders) {
+      final double total = double.tryParse(o['capital_invertido']?.toString() ?? '0.0') ?? 0.0;
+      final double profit = double.tryParse(o['ganancia_esperada']?.toString() ?? '0.0') ?? 0.0;
+      totalVendido += total;
+      totalGananciaEsperada += profit;
+    }
+    
+    final double margenPromedio = totalVendido > 0 ? (totalGananciaEsperada / totalVendido) * 100 : 0.0;
+
+    final int deliveredCount = orders.where((o) => o['estado']?.toString().toLowerCase() == 'entregado').length;
+    final int pendingCount = orders.where((o) => o['estado']?.toString().toLowerCase() == 'pendiente').length;
+
+    final Map<String, int> productCounts = {};
+    for (var o in orders) {
+      final items = o['items'] as List<dynamic>?;
+      if (items != null) {
+        for (var item in items) {
+          final name = item['nombre']?.toString() ?? 'Otro';
+          final qty = int.tryParse(item['cantidad']?.toString() ?? '1') ?? 1;
+          productCounts[name] = (productCounts[name] ?? 0) + qty;
+        }
+      } else {
+        final name = o['producto_nombre']?.toString() ?? 'Otro';
+        productCounts[name] = (productCounts[name] ?? 0) + 1;
+      }
+    }
+    final topProducts = productCounts.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+
+    final Map<String, Map<String, dynamic>> userStats = {};
+    for (var o in orders) {
+      final userName = o['comprador_nombre']?.toString() ?? 'Comprador Anónimo';
+      final total = double.tryParse(o['capital_invertido']?.toString() ?? '0.0') ?? 0.0;
+      if (!userStats.containsKey(userName)) {
+        userStats[userName] = {'count': 0, 'spent': 0.0};
+      }
+      userStats[userName]!['count'] = (userStats[userName]!['count'] as int) + 1;
+      userStats[userName]!['spent'] = (userStats[userName]!['spent'] as double) + total;
+    }
+    final sortedUsers = userStats.entries.toList()
+      ..sort((a, b) => (b.value['count'] as int).compareTo(a.value['count'] as int));
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildStatsGrid(context),
+        _buildStatsGrid(context, totalPedidos, productCount, totalVendido, margenPromedio),
         const SizedBox(height: 32),
         const Text(
           'INTELIGENCIA DE NEGOCIO 📊',
           style: TextStyle(fontWeight: FontWeight.w900, fontSize: 10, letterSpacing: 2, color: AppTheme.textGray),
         ),
         const SizedBox(height: 16),
-        _buildChartsRow(),
+        _buildChartsRow(deliveredCount, pendingCount, topProducts),
+        const SizedBox(height: 32),
+        const Text(
+          'CLIENTES FRECUENTES ALY 🏆',
+          style: TextStyle(fontWeight: FontWeight.w900, fontSize: 10, letterSpacing: 2, color: AppTheme.textGray),
+        ),
+        const SizedBox(height: 16),
+        _buildFrequentUsersList(sortedUsers),
         const SizedBox(height: 32),
         const Text(
           'ACCIONES DE CONTROL ⚙️',
@@ -55,7 +122,7 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
   }
 
   Widget _buildProductsView(BuildContext context) {
-    final productsAsync = ref.watch(productsFutureProvider);
+    final productsAsync = ref.watch(productsStreamProvider);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -96,11 +163,16 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
     );
   }
 
-  // --- MÉTODOS DE LA UI ORIGINAL --- (Adaptados para interactividad)
-
-  Widget _buildStatsGrid(BuildContext context) {
+  Widget _buildStatsGrid(BuildContext context, int totalPedidos, int productCount, double totalVendido, double margenPromedio) {
     final double width = MediaQuery.of(context).size.width;
     final bool isDesktop = width > 700;
+
+    String formatMoney(double val) {
+      if (val >= 1000) {
+        return 'S/ ${(val / 1000).toStringAsFixed(1)}k';
+      }
+      return 'S/ ${val.toStringAsFixed(0)}';
+    }
 
     return GridView.count(
       shrinkWrap: true,
@@ -110,10 +182,10 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
       mainAxisSpacing: 12,
       childAspectRatio: isDesktop ? 2.0 : 1.6,
       children: [
-        _statCard('TOTAL PEDIDOS', '156', Icons.assignment_outlined, AppTheme.accentOrange),
-        _statCard('PROD. ACTIVOS', '42', Icons.inventory_2_outlined, const Color(0xFF6366F1)),
-        _statCard('GANANCIA REAL', 'S/ 12.4k', Icons.trending_up, const Color(0xFF10B981)),
-        _statCard('MARGEN PROM.', '18%', Icons.pie_chart_outline, const Color(0xFF8B5CF6)),
+        _statCard('TOTAL PEDIDOS', '$totalPedidos', Icons.assignment_outlined, AppTheme.accentOrange),
+        _statCard('PROD. ACTIVOS', '$productCount', Icons.inventory_2_outlined, const Color(0xFF6366F1)),
+        _statCard('GANANCIA REAL', formatMoney(totalVendido), Icons.trending_up, const Color(0xFF10B981)),
+        _statCard('MARGEN PROM.', '${margenPromedio.toStringAsFixed(1)}%', Icons.pie_chart_outline, const Color(0xFF8B5CF6)),
       ],
     );
   }
@@ -140,7 +212,20 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
     );
   }
 
-  Widget _buildChartsRow() {
+  Widget _buildChartsRow(int deliveredCount, int pendingCount, List<MapEntry<String, int>> topProducts) {
+    final total = deliveredCount + pendingCount;
+    final double deliveredPct = total > 0 ? (deliveredCount / total) * 100 : 65.0;
+    final double pendingPct = total > 0 ? (pendingCount / total) * 100 : 35.0;
+
+    final String p1 = topProducts.isNotEmpty ? topProducts[0].key : 'Cemento';
+    final double v1 = topProducts.isNotEmpty ? topProducts[0].value.toDouble() : 8.0;
+
+    final String p2 = topProducts.length > 1 ? topProducts[1].key : 'Silicona';
+    final double v2 = topProducts.length > 1 ? topProducts[1].value.toDouble() : 5.0;
+
+    final String p3 = topProducts.length > 2 ? topProducts[2].key : 'Pintura';
+    final double v3 = topProducts.length > 2 ? topProducts[2].value.toDouble() : 3.0;
+
     return SizedBox(
       height: 220,
       child: Row(
@@ -172,20 +257,20 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
                             PieChartData(
                               sections: [
                                 PieChartSectionData(
-                                  value: 65, 
+                                  value: deliveredPct, 
                                   color: const Color(0xFF10B981), 
                                   radius: 12, 
                                   showTitle: true,
-                                  title: '65%',
-                                  titleStyle: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white),
+                                  title: '${deliveredPct.toStringAsFixed(0)}%',
+                                  titleStyle: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Colors.white),
                                 ),
                                 PieChartSectionData(
-                                  value: 35, 
+                                  value: pendingPct, 
                                   color: const Color(0xFF3B82F6), 
                                   radius: 12, 
                                   showTitle: true,
-                                  title: '35%',
-                                  titleStyle: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white),
+                                  title: '${pendingPct.toStringAsFixed(0)}%',
+                                  titleStyle: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Colors.white),
                                 ),
                               ],
                               centerSpaceRadius: 28,
@@ -200,9 +285,9 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
                             mainAxisAlignment: MainAxisAlignment.center,
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              _legendRow(const Color(0xFF10B981), 'Entregados'),
+                              _legendRow(const Color(0xFF10B981), 'Entregados ($deliveredCount)'),
                               const SizedBox(height: 8),
-                              _legendRow(const Color(0xFF3B82F6), 'En Proceso'),
+                              _legendRow(const Color(0xFF3B82F6), 'Pendientes ($pendingCount)'),
                             ],
                           ),
                         ),
@@ -223,7 +308,7 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'VENTAS TRIMESTRALES (S/)',
+                    'PRODUCTOS MÁS COMPRADOS',
                     style: GoogleFonts.outfit(
                       fontSize: 10,
                       fontWeight: FontWeight.w900,
@@ -243,11 +328,11 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
                               getTitlesWidget: (value, meta) {
                                 switch (value.toInt()) {
                                   case 0:
-                                    return const Text('Ene', style: TextStyle(color: AppTheme.textGray, fontSize: 8, fontWeight: FontWeight.bold));
+                                    return Text(p1.length > 8 ? '${p1.substring(0, 6)}..' : p1, style: const TextStyle(color: AppTheme.textGray, fontSize: 8, fontWeight: FontWeight.bold));
                                   case 1:
-                                    return const Text('Feb', style: TextStyle(color: AppTheme.textGray, fontSize: 8, fontWeight: FontWeight.bold));
+                                    return Text(p2.length > 8 ? '${p2.substring(0, 6)}..' : p2, style: const TextStyle(color: AppTheme.textGray, fontSize: 8, fontWeight: FontWeight.bold));
                                   case 2:
-                                    return const Text('Mar', style: TextStyle(color: AppTheme.textGray, fontSize: 8, fontWeight: FontWeight.bold));
+                                    return Text(p3.length > 8 ? '${p3.substring(0, 6)}..' : p3, style: const TextStyle(color: AppTheme.textGray, fontSize: 8, fontWeight: FontWeight.bold));
                                   default:
                                     return const Text('');
                                 }
@@ -259,9 +344,9 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
                           rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
                         ),
                         barGroups: [
-                          BarChartGroupData(x: 0, barRods: [BarChartRodData(toY: 8, color: AppTheme.accentOrange, width: 12, borderRadius: BorderRadius.circular(3))]),
-                          BarChartGroupData(x: 1, barRods: [BarChartRodData(toY: 10, color: const Color(0xFF10B981), width: 12, borderRadius: BorderRadius.circular(3))]),
-                          BarChartGroupData(x: 2, barRods: [BarChartRodData(toY: 7, color: const Color(0xFF3B82F6), width: 12, borderRadius: BorderRadius.circular(3))]),
+                          BarChartGroupData(x: 0, barRods: [BarChartRodData(toY: v1, color: AppTheme.accentOrange, width: 12, borderRadius: BorderRadius.circular(3))]),
+                          BarChartGroupData(x: 1, barRods: [BarChartRodData(toY: v2, color: const Color(0xFF10B981), width: 12, borderRadius: BorderRadius.circular(3))]),
+                          BarChartGroupData(x: 2, barRods: [BarChartRodData(toY: v3, color: const Color(0xFF3B82F6), width: 12, borderRadius: BorderRadius.circular(3))]),
                         ],
                         borderData: FlBorderData(show: false),
                         gridData: const FlGridData(show: false),
@@ -297,6 +382,63 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildFrequentUsersList(List<MapEntry<String, Map<String, dynamic>>> sortedUsers) {
+    final displayUsers = sortedUsers.take(5).toList();
+    if (displayUsers.isEmpty) {
+      return const GlassContainer(
+        padding: EdgeInsets.all(16),
+        borderRadius: 12,
+        child: Center(
+          child: Text('No hay clientes registrados aún.', style: TextStyle(color: AppTheme.textGray, fontSize: 12)),
+        ),
+      );
+    }
+
+    return GlassContainer(
+      padding: const EdgeInsets.all(20),
+      borderRadius: 16,
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('COMPRADOR', style: GoogleFonts.outfit(color: AppTheme.accentOrange, fontWeight: FontWeight.bold, fontSize: 11, letterSpacing: 1)),
+              Text('COMPRAS', style: GoogleFonts.outfit(color: AppTheme.accentOrange, fontWeight: FontWeight.bold, fontSize: 11, letterSpacing: 1)),
+              Text('TOTAL INVERTIDO', style: GoogleFonts.outfit(color: AppTheme.accentOrange, fontWeight: FontWeight.bold, fontSize: 11, letterSpacing: 1)),
+            ],
+          ),
+          const Divider(color: Colors.white10, height: 24),
+          ListView.separated(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: displayUsers.length,
+            separatorBuilder: (_, __) => const Divider(color: Colors.white05, height: 16),
+            itemBuilder: (context, idx) {
+              final entry = displayUsers[idx];
+              final name = entry.key;
+              final count = entry.value['count'] as int;
+              final spent = entry.value['spent'] as double;
+              return Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      const Text('👤', style: TextStyle(fontSize: 14)),
+                      const SizedBox(width: 8),
+                      Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Colors.white)),
+                    ],
+                  ),
+                  Text('$count pedidos', style: const TextStyle(color: AppTheme.textGray, fontSize: 12)),
+                  Text('S/ ${spent.toStringAsFixed(2)}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
+                ],
+              );
+            },
+          ),
+        ],
+      ),
     );
   }
 
@@ -361,8 +503,6 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
       ),
     );
   }
-
-  // --- DIÁLOGO PREMIUM PARA ADMIN ---
 
   void _showProductDialog(BuildContext context, {Producto? product}) {
     final isEdit = product != null;
@@ -479,7 +619,7 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
                 };
                 if (isEdit) await api.updateProducto(product.id, data);
                 else await api.createProducto(data);
-                ref.refresh(productsFutureProvider);
+                ref.refresh(productsStreamProvider);
                 if (context.mounted) Navigator.pop(ctx);
               },
               child: const Text('GUARDAR'),
@@ -506,8 +646,7 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
 
     if (confirm == true) {
       await ref.read(apiServiceProvider).deleteProducto(id);
-      ref.refresh(productsFutureProvider);
+      ref.refresh(productsStreamProvider);
     }
   }
 }
-

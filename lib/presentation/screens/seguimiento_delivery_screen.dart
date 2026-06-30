@@ -98,12 +98,21 @@ class _SeguimientoDeliveryScreenState extends State<SeguimientoDeliveryScreen> {
       }
     }
 
-    // 2. If still null, try to load the most recent pending order from Firestore
+    // 2. If user location is still null, fetch from Firestore (either specific orderId or latest pending)
     if (_userLocation == null) {
       try {
         final firestore = FirebaseFirestore.instance;
         final currentUser = FirebaseAuth.instance.currentUser;
-        if (currentUser != null) {
+        
+        DocumentSnapshot<Map<String, dynamic>>? docSnapshot;
+        if (widget.orderId != null && widget.orderId!.isNotEmpty) {
+          final docRef = await firestore.collection('pedidos').doc(widget.orderId).get();
+          if (docRef.exists) {
+            docSnapshot = docRef;
+          }
+        }
+        
+        if (docSnapshot == null && currentUser != null) {
           final orderSnap = await firestore
               .collection('pedidos')
               .where('comprador_id', isEqualTo: currentUser.uid)
@@ -111,38 +120,49 @@ class _SeguimientoDeliveryScreenState extends State<SeguimientoDeliveryScreen> {
               .orderBy('fecha_pedido', descending: true)
               .limit(1)
               .get();
-          
           if (orderSnap.docs.isNotEmpty) {
-            final doc = orderSnap.docs.first;
-            final orderData = doc.data();
+            docSnapshot = orderSnap.docs.first;
+          }
+        }
+
+        if (docSnapshot != null) {
+          final orderData = docSnapshot.data()!;
+          double? lat;
+          double? lng;
+          
+          if (orderData['latitud'] != null && orderData['longitud'] != null) {
+            lat = double.tryParse(orderData['latitud'].toString());
+            lng = double.tryParse(orderData['longitud'].toString());
+          } else {
             final String? coordsStr = orderData['coordenadas_gps']?.toString();
             if (coordsStr != null && coordsStr.contains(',')) {
               final parts = coordsStr.split(',');
-              final lat = double.tryParse(parts[0]);
-              final lng = double.tryParse(parts[1]);
-              if (lat != null && lng != null) {
-                _userLocation = LatLng(lat, lng);
-                
-                // Fetch the route calculated for this coordinates
-                final route = await _geoService.obtenerRuta(
-                  origenLat: _tiendaLocation.latitude,
-                  origenLng: _tiendaLocation.longitude,
-                  destinoLat: lat,
-                  destinoLng: lng,
-                  tipo: 'tienda_a_usuario',
-                  usuarioId: currentUser.uid,
-                );
-                
-                if (route != null) {
-                  _ruta = route;
-                  _routePoints = _decodePolyline(route.polyline);
-                }
-              }
+              lat = double.tryParse(parts[0]);
+              lng = double.tryParse(parts[1]);
+            }
+          }
+
+          if (lat != null && lng != null) {
+            _userLocation = LatLng(lat, lng);
+            
+            // Fetch the route calculated for this coordinates
+            final route = await _geoService.obtenerRuta(
+              origenLat: _tiendaLocation.latitude,
+              origenLng: _tiendaLocation.longitude,
+              destinoLat: lat,
+              destinoLng: lng,
+              tipo: 'tienda_a_usuario',
+              usuarioId: currentUser?.uid,
+            );
+            
+            if (route != null) {
+              _ruta = route;
+              _routePoints = _decodePolyline(route.polyline);
             }
           }
         }
       } catch (e) {
-        debugPrint('Error loading latest pending order for tracking: $e');
+        debugPrint('Error loading order for tracking: $e');
       }
     }
 
@@ -287,8 +307,11 @@ class _SeguimientoDeliveryScreenState extends State<SeguimientoDeliveryScreen> {
         FirebaseFirestore.instance
             .collection('pedidos')
             .doc(oId)
-            .update({'estado': 'entregado'});
-        debugPrint('✅ Firestore: Estado del pedido $oId actualizado a "entregado"');
+            .update({
+          'estado': 'entregado',
+          'tracking_enabled': false,
+        });
+        debugPrint('✅ Firestore: Estado del pedido $oId actualizado a "entregado" y tracking finalizado');
       } catch (err) {
         debugPrint('⚠️ Firestore error al actualizar pedido: $err');
       }
@@ -305,7 +328,10 @@ class _SeguimientoDeliveryScreenState extends State<SeguimientoDeliveryScreen> {
               .get()
               .then((snap) {
             if (snap.docs.isNotEmpty) {
-              snap.docs.first.reference.update({'estado': 'entregado'});
+              snap.docs.first.reference.update({
+                'estado': 'entregado',
+                'tracking_enabled': false,
+              });
               debugPrint('✅ Firestore: Estado del último pedido pendiente actualizado a "entregado"');
             }
           });

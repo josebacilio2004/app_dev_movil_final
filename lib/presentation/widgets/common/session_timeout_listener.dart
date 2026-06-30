@@ -34,21 +34,18 @@ class _SessionTimeoutListenerState extends ConsumerState<SessionTimeoutListener>
 
   void _checkAndStartTimer() {
     final user = ref.read(authStateProvider);
-    final policy = ref.read(autoLogoutPolicyProvider);
 
     _cancelTimer();
 
     if (user == null) return;
-    if (policy == AutoLogoutPolicy.disabled || policy == AutoLogoutPolicy.minimize) return;
 
     _inactivityTimer = Timer(_timeoutDuration, _handleTimeout);
   }
 
   void _resetTimer() {
     final user = ref.read(authStateProvider);
-    final policy = ref.read(autoLogoutPolicyProvider);
 
-    if (user == null || policy == AutoLogoutPolicy.disabled || policy == AutoLogoutPolicy.minimize) {
+    if (user == null) {
       _cancelTimer();
       return;
     }
@@ -87,28 +84,13 @@ class _SessionTimeoutListenerState extends ConsumerState<SessionTimeoutListener>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
-    
-    final user = ref.read(authStateProvider);
-    final policy = ref.read(autoLogoutPolicyProvider);
-
-    if (user == null) return;
-
-    if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
-      if (policy == AutoLogoutPolicy.minimize || policy == AutoLogoutPolicy.both) {
-        debugPrint('🔒 Seguridad: Sesión cerrada al minimizar la aplicación');
-        _logout();
-      }
-    }
+    // Cierre de sesión por inactividad fijo, removemos el cierre al minimizar
   }
 
   @override
   Widget build(BuildContext context) {
     // Escuchar cambios para restablecer o limpiar el temporizador reactivamente
     ref.listen(authStateProvider, (previous, next) {
-      _checkAndStartTimer();
-    });
-
-    ref.listen(autoLogoutPolicyProvider, (previous, next) {
       _checkAndStartTimer();
     });
 

@@ -3,8 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:gestor_invetarios_pedidos_app/core/theme/app_theme.dart';
 import 'package:gestor_invetarios_pedidos_app/presentation/providers/database_provider.dart';
+import 'package:gestor_invetarios_pedidos_app/presentation/providers/auth_provider.dart';
+import 'package:gestor_invetarios_pedidos_app/presentation/screens/seguimiento_delivery_screen.dart';
 import 'package:gestor_invetarios_pedidos_app/presentation/widgets/common/app_drawer.dart';
 
 class OrderListScreen extends ConsumerWidget {
@@ -20,9 +23,45 @@ class OrderListScreen extends ConsumerWidget {
     }
   }
 
+  Future<void> _iniciarSeguimiento(BuildContext context, String orderId) async {
+    try {
+      await FirebaseFirestore.instance
+          .collection('pedidos')
+          .doc(orderId)
+          .update({
+        'tracking_enabled': true,
+        'estado_tracking': 'en_camino',
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('¡Seguimiento de delivery iniciado! El cliente ya puede rastrearlo.'),
+          backgroundColor: AppTheme.successGreen,
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error al habilitar delivery: $e')),
+      );
+    }
+  }
+
+  void _verMapa(BuildContext context, Map<String, dynamic> o, String id) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => SeguimientoDeliveryScreen(
+          orderId: id,
+          destinoLat: o['latitud'] != null ? double.tryParse(o['latitud'].toString()) : null,
+          destinoLng: o['longitud'] != null ? double.tryParse(o['longitud'].toString()) : null,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final ordersAsync = ref.watch(ordersStreamProvider);
+    final user = ref.watch(authStateProvider);
+    final bool isAdmin = user != null && user.rol == 'admin';
     final bool isWeb = MediaQuery.of(context).size.width >= 900;
 
     final appBar = AppBar(
@@ -52,9 +91,9 @@ class OrderListScreen extends ConsumerWidget {
       body: ordersAsync.when(
         data: (orders) {
           if (isWeb) {
-            return _buildWebOrderTable(orders);
+            return _buildWebOrderTable(context, orders, isAdmin);
           } else {
-            return _buildMobileOrderList(orders);
+            return _buildMobileOrderList(context, orders, isAdmin, ref);
           }
         },
         loading: () => const Center(child: CircularProgressIndicator(color: AppTheme.accentOrange)),
@@ -63,7 +102,7 @@ class OrderListScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildMobileOrderList(List<Map<String, dynamic>> orders) {
+  Widget _buildMobileOrderList(BuildContext context, List<Map<String, dynamic>> orders, bool isAdmin, WidgetRef ref) {
     if (orders.isEmpty) {
       return const Center(child: Text('No hay pedidos registrados.', style: TextStyle(color: AppTheme.textGray)));
     }
@@ -74,18 +113,12 @@ class OrderListScreen extends ConsumerWidget {
       itemCount: orders.length,
       itemBuilder: (context, index) {
         final o = orders[index];
-        return _orderCard(
-          o['nro_boleta'] ?? o['id'] ?? 'PED-000',
-          _formatDate(o['fecha_pedido'] ?? 'N/A'),
-          o['producto_nombre'] ?? 'Producto Desconocido',
-          'S/ ${o['capital_invertido'] ?? '0.00'}',
-          o['estado'] ?? 'PENDIENTE',
-        );
+        return _orderCard(context, o, isAdmin, ref);
       },
     );
   }
 
-  Widget _buildWebOrderTable(List<Map<String, dynamic>> orders) {
+  Widget _buildWebOrderTable(BuildContext context, List<Map<String, dynamic>> orders, bool isAdmin) {
     if (orders.isEmpty) {
       return const Center(child: Text('No hay pedidos registrados.', style: TextStyle(color: AppTheme.textGray)));
     }
@@ -120,14 +153,66 @@ class OrderListScreen extends ConsumerWidget {
                 DataColumn(label: Text('PRODUCTOS', style: GoogleFonts.outfit(color: AppTheme.accentOrange, fontWeight: FontWeight.bold, fontSize: 13, letterSpacing: 1))),
                 DataColumn(label: Text('TOTAL', style: GoogleFonts.outfit(color: AppTheme.accentOrange, fontWeight: FontWeight.bold, fontSize: 13, letterSpacing: 1))),
                 DataColumn(label: Text('ESTADO', style: GoogleFonts.outfit(color: AppTheme.accentOrange, fontWeight: FontWeight.bold, fontSize: 13, letterSpacing: 1))),
+                DataColumn(label: Text('ACCIONES', style: GoogleFonts.outfit(color: AppTheme.accentOrange, fontWeight: FontWeight.bold, fontSize: 13, letterSpacing: 1))),
               ],
               rows: orders.map((o) {
                 final status = (o['estado'] ?? 'PENDIENTE').toString().toUpperCase();
                 final isPending = status == 'PENDIENTE';
+                final isTrackingEnabled = o['tracking_enabled'] == true;
+                final id = o['id'] ?? '';
+
+                Widget actionWidget;
+                if (isAdmin) {
+                  if (isPending) {
+                    if (!isTrackingEnabled) {
+                      actionWidget = ElevatedButton(
+                        onPressed: () => _iniciarSeguimiento(context, id),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.accentOrange,
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          minimumSize: const Size(120, 36),
+                        ),
+                        child: const Text('HABILITAR DELIVERY', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
+                      );
+                    } else {
+                      actionWidget = ElevatedButton(
+                        onPressed: () => _verMapa(context, o, id),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF6366F1),
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          minimumSize: const Size(120, 36),
+                        ),
+                        child: const Text('VER MAPA', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
+                      );
+                    }
+                  } else {
+                    actionWidget = const Text('Llegó a destino', style: TextStyle(color: AppTheme.textGray, fontSize: 11));
+                  }
+                } else {
+                  if (isPending) {
+                    if (isTrackingEnabled) {
+                      actionWidget = ElevatedButton.icon(
+                        onPressed: () => _verMapa(context, o, id),
+                        icon: const Icon(Icons.map_rounded, size: 12, color: Colors.white),
+                        label: const Text('RASTREAR', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.accentOrange,
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          minimumSize: const Size(110, 36),
+                        ),
+                      );
+                    } else {
+                      actionWidget = const Text('En almacén Aly', style: TextStyle(color: AppTheme.textGray, fontSize: 11));
+                    }
+                  } else {
+                    actionWidget = const Text('Entregado', style: TextStyle(color: AppTheme.successGreen, fontSize: 11, fontWeight: FontWeight.bold));
+                  }
+                }
+
                 return DataRow(
                   cells: [
                     DataCell(Text(
-                      o['nro_boleta'] ?? o['id'] ?? 'PED-000',
+                      o['nro_boleta'] ?? id.substring(0, min(id.length, 8)),
                       style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
                     )),
                     DataCell(Text(
@@ -160,6 +245,7 @@ class OrderListScreen extends ConsumerWidget {
                         ),
                       ),
                     )),
+                    DataCell(actionWidget),
                   ],
                 );
               }).toList(),
@@ -170,8 +256,15 @@ class OrderListScreen extends ConsumerWidget {
     );
   }
 
-  Widget _orderCard(String id, String date, String product, String price, String status) {
-    final bool isPending = status.toUpperCase() == 'PENDIENTE';
+  Widget _orderCard(BuildContext context, Map<String, dynamic> o, bool isAdmin, WidgetRef ref) {
+    final String id = o['id'] ?? '';
+    final String boleta = o['nro_boleta'] ?? id;
+    final String date = _formatDate(o['fecha_pedido'] ?? 'N/A');
+    final String product = o['producto_nombre'] ?? 'Producto Desconocido';
+    final String price = 'S/ ${o['capital_invertido'] ?? '0.00'}';
+    final String status = (o['estado'] ?? 'PENDIENTE').toString().toUpperCase();
+    final bool isPending = status == 'PENDIENTE';
+    final bool isTrackingEnabled = o['tracking_enabled'] == true;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -190,7 +283,7 @@ class OrderListScreen extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    id,
+                    boleta,
                     style: const TextStyle(color: AppTheme.accentOrange, fontWeight: FontWeight.w900, fontSize: 13, letterSpacing: 1),
                   ),
                   const SizedBox(height: 2),
@@ -240,6 +333,57 @@ class OrderListScreen extends ConsumerWidget {
               ),
             ],
           ),
+          if (isPending) ...[
+            const Divider(color: Colors.white10, height: 24),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Text(
+                    isAdmin
+                        ? (isTrackingEnabled ? '🚚 SEGUIMIENTO ACTIVO' : '🚚 NO INICIADO')
+                        : (isTrackingEnabled ? '🟢 Camión en ruta a tu ubicación' : '⏳ Preparando materiales en almacén'),
+                    style: TextStyle(
+                      color: isTrackingEnabled ? AppTheme.successGreen : AppTheme.textGray,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                if (isAdmin)
+                  (!isTrackingEnabled
+                      ? ElevatedButton(
+                          onPressed: () => _iniciarSeguimiento(context, id),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppTheme.accentOrange,
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            minimumSize: const Size(120, 36),
+                          ),
+                          child: const Text('HABILITAR DELIVERY', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
+                        )
+                      : ElevatedButton(
+                          onPressed: () => _verMapa(context, o, id),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF6366F1),
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            minimumSize: const Size(120, 36),
+                          ),
+                          child: const Text('VER MAPA', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
+                        ))
+                else if (isTrackingEnabled)
+                  ElevatedButton.icon(
+                    onPressed: () => _verMapa(context, o, id),
+                    icon: const Icon(Icons.map_rounded, size: 12, color: Colors.white),
+                    label: const Text('RASTREAR', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.accentOrange,
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      minimumSize: const Size(110, 36),
+                    ),
+                  ),
+              ],
+            ),
+          ],
         ],
       ),
     );

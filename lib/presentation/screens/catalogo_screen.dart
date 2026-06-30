@@ -10,6 +10,8 @@ import 'package:gestor_invetarios_pedidos_app/data/services/google_drive_service
 import 'package:image_picker/image_picker.dart';
 import 'dart:async';
 import 'dart:convert';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/services.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:speech_to_text/speech_to_text.dart';
@@ -1522,6 +1524,14 @@ class _CatalogoScreenState extends ConsumerState<CatalogoScreen> with SingleTick
     final icon = _categoryIcons[producto.categoria] ?? Icons.category_rounded;
     final imageUrl = _getProductImage(producto);
 
+    final catalogoAsync = ref.read(catalogoStreamProvider);
+    List<CatalogoProducto> similarProducts = [];
+    if (catalogoAsync.hasValue) {
+      similarProducts = catalogoAsync.value!
+          .where((p) => p.categoria == producto.categoria && p.id != producto.id)
+          .toList();
+    }
+
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -1772,8 +1782,250 @@ class _CatalogoScreenState extends ConsumerState<CatalogoScreen> with SingleTick
                           padding: const EdgeInsets.symmetric(vertical: 14),
                         ),
                       ),
+                  ],
+                  
+                  // --- SECCIÓN DE VALORACIONES Y OPINIONES ---
+                  const SizedBox(height: 24),
+                  const Text(
+                    'OPINIONES Y VALORACIONES',
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 2,
+                      color: AppTheme.accentOrange,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                    stream: FirebaseFirestore.instance
+                        .collection('catalogo_productos')
+                        .doc(producto.id)
+                        .collection('resenas')
+                        .orderBy('fecha', descending: true)
+                        .snapshots(),
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return const Center(child: CircularProgressIndicator(color: AppTheme.accentOrange, strokeWidth: 2));
+                      }
+                      
+                      final docs = snapshot.data?.docs ?? [];
+                      
+                      // Calcular promedio de estrellas
+                      double avgStars = 0.0;
+                      if (docs.isNotEmpty) {
+                        final totalStars = docs.fold<double>(0.0, (sum, doc) {
+                          final val = double.tryParse(doc.data()['estrellas']?.toString() ?? '0.0') ?? 0.0;
+                          return sum + val;
+                        });
+                        avgStars = totalStars / docs.length;
+                      }
+
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Row(
+                                children: List.generate(5, (index) {
+                                  final starVal = index + 1;
+                                  if (starVal <= avgStars.round()) {
+                                    return const Icon(Icons.star_rounded, color: Colors.amber, size: 20);
+                                  } else {
+                                    return const Icon(Icons.star_outline_rounded, color: Colors.white24, size: 20);
+                                  }
+                                }),
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                docs.isNotEmpty
+                                    ? '${avgStars.toStringAsFixed(1)} / 5.0 (${docs.length} ${docs.length == 1 ? 'reseña' : 'reseñas'})'
+                                    : 'Sin valoraciones aún',
+                                style: const TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.bold),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          if (docs.isEmpty)
+                            const Padding(
+                              padding: EdgeInsets.symmetric(vertical: 8.0),
+                              child: Text('Sé el primero en calificar este producto.', style: TextStyle(color: AppTheme.textGray, fontSize: 11)),
+                            )
+                          else
+                            ListView.separated(
+                              shrinkWrap: true,
+                              physics: const NeverScrollableScrollPhysics(),
+                              itemCount: docs.length,
+                              separatorBuilder: (_, __) => const SizedBox(height: 12),
+                              itemBuilder: (context, idx) {
+                                final data = docs[idx].data();
+                                final String user = data['usuario_nombre'] ?? 'Comprador Aly';
+                                final double stars = double.tryParse(data['estrellas']?.toString() ?? '0.0') ?? 0.0;
+                                final String comment = data['comentario'] ?? '';
+                                final String dateRaw = data['fecha'] ?? '';
+                                final String? imgBase64 = data['imagen_base64'];
+
+                                String dateStr = 'N/A';
+                                if (dateRaw.isNotEmpty) {
+                                  try {
+                                    final parsed = DateTime.parse(dateRaw);
+                                    dateStr = DateFormat('dd/MM/yyyy').format(parsed);
+                                  } catch (_) {}
+                                }
+
+                                return Container(
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withOpacity(0.02),
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(color: Colors.white.withOpacity(0.04)),
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          Text(user, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 11)),
+                                          Text(dateStr, style: const TextStyle(color: AppTheme.textGray, fontSize: 9)),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Row(
+                                        children: List.generate(5, (index) {
+                                          return Icon(
+                                            index < stars.round() ? Icons.star_rounded : Icons.star_outline_rounded,
+                                            color: index < stars.round() ? Colors.amber : Colors.white10,
+                                            size: 12,
+                                          );
+                                        }),
+                                      ),
+                                      if (comment.isNotEmpty) ...[
+                                        const SizedBox(height: 8),
+                                        Text(comment, style: const TextStyle(color: AppTheme.textGray, fontSize: 11, height: 1.4)),
+                                      ],
+                                      if (imgBase64 != null && imgBase64.isNotEmpty) ...[
+                                        const SizedBox(height: 8),
+                                        GestureDetector(
+                                          onTap: () {
+                                            showDialog(
+                                              context: context,
+                                              builder: (context) => Dialog(
+                                                backgroundColor: Colors.transparent,
+                                                child: InteractiveViewer(
+                                                  child: Image.memory(base64Decode(imgBase64)),
+                                                ),
+                                              ),
+                                            );
+                                          },
+                                          child: ClipRRect(
+                                            borderRadius: BorderRadius.circular(8),
+                                            child: Image.memory(
+                                              base64Decode(imgBase64),
+                                              width: 60,
+                                              height: 60,
+                                              fit: BoxFit.cover,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                );
+                              },
+                            ),
+                          const SizedBox(height: 16),
+                          SizedBox(
+                            width: double.infinity,
+                            child: OutlinedButton.icon(
+                              onPressed: () => _mostrarDialogoResena(producto),
+                              icon: const Icon(Icons.rate_review_outlined, size: 16),
+                              label: const Text('ESCRIBIR UNA RESEÑA', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: AppTheme.accentOrange,
+                                side: const BorderSide(color: AppTheme.accentOrange),
+                                padding: const EdgeInsets.symmetric(vertical: 12),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              ),
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+
+                  // --- SECCIÓN DE PRODUCTOS SIMILARES ---
+                  if (similarProducts.isNotEmpty) ...[
+                    const SizedBox(height: 28),
+                    const Text(
+                      'PRODUCTOS SIMILARES',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 2,
+                        color: AppTheme.accentOrange,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      height: 130,
+                      child: ListView.builder(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: similarProducts.length,
+                        physics: const BouncingScrollPhysics(),
+                        itemBuilder: (context, index) {
+                          final p = similarProducts[index];
+                          final pImg = _getProductImage(p);
+                          return GestureDetector(
+                            onTap: () {
+                              Navigator.pop(context);
+                              Future.delayed(const Duration(milliseconds: 300), () {
+                                _showProductDetail(p);
+                              });
+                            },
+                            child: Container(
+                              width: 100,
+                              margin: const EdgeInsets.only(right: 12),
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.02),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: Colors.white.withOpacity(0.04)),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  ClipRRect(
+                                    borderRadius: BorderRadius.circular(8),
+                                    child: _buildProductImageWidget(
+                                      pImg,
+                                      p.categoria,
+                                      width: double.infinity,
+                                      height: 60,
+                                      placeholderIconSize: 20,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Expanded(
+                                    child: Text(
+                                      p.nombre,
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold),
+                                    ),
+                                  ),
+                                  Text(
+                                    'S/ ${p.precioUnitario.toStringAsFixed(2)}',
+                                    style: const TextStyle(color: AppTheme.successGreen, fontSize: 8.5, fontWeight: FontWeight.w900),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
                     ),
                   ],
+
                   if (widget.userRole == 'admin') ...[
                     const SizedBox(height: 30),
                     Row(
@@ -1818,6 +2070,180 @@ class _CatalogoScreenState extends ConsumerState<CatalogoScreen> with SingleTick
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  void _mostrarDialogoResena(CatalogoProducto producto) {
+    double selectedRating = 5;
+    final commentController = TextEditingController();
+    XFile? pickedImage;
+    String? base64Image;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setState) {
+          Future<void> _pickImage(ImageSource source) async {
+            try {
+              final picker = ImagePicker();
+              final file = await picker.pickImage(
+                source: source,
+                imageQuality: 25,
+                maxWidth: 400,
+                maxHeight: 400,
+              );
+              if (file != null) {
+                final bytes = await file.readAsBytes();
+                setState(() {
+                  pickedImage = file;
+                  base64Image = base64Encode(bytes);
+                });
+              }
+            } catch (e) {
+              debugPrint('Error seleccionando imagen: $e');
+            }
+          }
+
+          return AlertDialog(
+            backgroundColor: AppTheme.surfaceDark,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+              side: BorderSide(color: Colors.white.withOpacity(0.08)),
+            ),
+            title: Row(
+              children: [
+                const Icon(Icons.auto_awesome, color: AppTheme.accentOrange),
+                const SizedBox(width: 8),
+                Text(
+                  'VALORAR PRODUCTO',
+                  style: GoogleFonts.outfit(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                ),
+              ],
+            ),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const Text('CALIFICACIÓN:', style: TextStyle(color: AppTheme.textGray, fontSize: 10, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: List.generate(5, (index) {
+                      final starValue = index + 1;
+                      return IconButton(
+                        icon: Icon(
+                          starValue <= selectedRating ? Icons.star_rounded : Icons.star_outline_rounded,
+                          color: starValue <= selectedRating ? Colors.amber : Colors.white24,
+                          size: 32,
+                        ),
+                        onPressed: () => setState(() => selectedRating = starValue.toDouble()),
+                      );
+                    }),
+                  ),
+                  const SizedBox(height: 16),
+                  const Text('TU OPINIÓN (COMENTARIO):', style: TextStyle(color: AppTheme.textGray, fontSize: 10, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: commentController,
+                    maxLines: 3,
+                    style: const TextStyle(color: Colors.white, fontSize: 12),
+                    decoration: InputDecoration(
+                      hintText: 'Cuéntanos tu experiencia con este producto...',
+                      hintStyle: const TextStyle(color: Colors.white24, fontSize: 12),
+                      fillColor: Colors.white.withOpacity(0.02),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: Colors.white.withOpacity(0.08)),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  const Text('FOTO DEL PRODUCTO (OPCIONAL):', style: TextStyle(color: AppTheme.textGray, fontSize: 10, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
+                  if (base64Image != null) ...[
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(10),
+                      child: Image.memory(base64Decode(base64Image!), height: 100, fit: BoxFit.cover),
+                    ),
+                    const SizedBox(height: 8),
+                  ],
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      ElevatedButton.icon(
+                        onPressed: () => _pickImage(ImageSource.camera),
+                        icon: const Icon(Icons.camera_alt_outlined, size: 14),
+                        label: const Text('CÁMARA', style: TextStyle(fontSize: 10)),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.white.withOpacity(0.04),
+                          foregroundColor: Colors.white70,
+                          minimumSize: const Size(100, 36),
+                        ),
+                      ),
+                      ElevatedButton.icon(
+                        onPressed: () => _pickImage(ImageSource.gallery),
+                        icon: const Icon(Icons.photo_library_outlined, size: 14),
+                        label: const Text('GALERÍA', style: TextStyle(fontSize: 10)),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.white.withOpacity(0.04),
+                          foregroundColor: Colors.white70,
+                          minimumSize: const Size(100, 36),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('CANCELAR', style: TextStyle(color: AppTheme.textGray)),
+              ),
+              ElevatedButton(
+                onPressed: () async {
+                  final currentUser = FirebaseAuth.instance.currentUser;
+                  final firestore = FirebaseFirestore.instance;
+                  
+                  String userName = 'Cliente Aly';
+                  if (currentUser != null) {
+                    final userDoc = await firestore.collection('users').doc(currentUser.uid).get();
+                    if (userDoc.exists) {
+                      userName = userDoc.data()?['nombre'] ?? userDoc.data()?['email'] ?? 'Comprador Aly';
+                    } else {
+                      userName = currentUser.displayName ?? currentUser.email ?? 'Comprador Aly';
+                    }
+                  }
+
+                  await firestore
+                      .collection('catalogo_productos')
+                      .doc(producto.id)
+                      .collection('resenas')
+                      .add({
+                    'usuario_nombre': userName,
+                    'estrellas': selectedRating,
+                    'comentario': commentController.text.trim(),
+                    'fecha': DateTime.now().toIso8601String(),
+                    'imagen_base64': base64Image,
+                  });
+
+                  if (context.mounted) {
+                    Navigator.pop(ctx);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('¡Muchas gracias por valorar este producto! Reseña publicada.'),
+                        backgroundColor: AppTheme.successGreen,
+                      ),
+                    );
+                  }
+                },
+                child: const Text('ENVIAR'),
+              ),
+            ],
+          );
+        },
       ),
     );
   }

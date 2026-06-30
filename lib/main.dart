@@ -13,6 +13,7 @@ import 'package:gestor_invetarios_pedidos_app/core/services/push_notification_se
 import 'package:gestor_invetarios_pedidos_app/data/services/firestore_service.dart';
 import 'package:gestor_invetarios_pedidos_app/presentation/screens/splash_screen.dart';
 import 'package:gestor_invetarios_pedidos_app/presentation/widgets/common/session_timeout_listener.dart';
+import 'package:gestor_invetarios_pedidos_app/presentation/providers/settings_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -80,10 +81,14 @@ class AlyApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final themeModeSetting = ref.watch(themeModeProvider);
+
     return MaterialApp(
       title: 'Comercializadora Aly',
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.industrialTheme,
+      theme: AppTheme.lightTheme,
+      darkTheme: AppTheme.industrialTheme,
+      themeMode: themeModeSetting,
       navigatorKey: navigatorKey,
       builder: (context, child) => SessionTimeoutListener(child: child!),
       home: const SplashScreen(),

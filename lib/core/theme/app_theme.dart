@@ -95,4 +95,67 @@ class AppTheme {
       ),
     );
   }
+
+  static ThemeData get lightTheme {
+    return ThemeData(
+      useMaterial3: true,
+      brightness: Brightness.light,
+      scaffoldBackgroundColor: const Color(0xFFF8FAFC),
+      colorScheme: const ColorScheme.light(
+        primary: accentOrange,
+        secondary: Color(0xFF4F46E5),
+        surface: Colors.white,
+        onSurface: Color(0xFF0F172A),
+        background: Color(0xFFF8FAFC),
+      ),
+      textTheme: GoogleFonts.outfitTextTheme().apply(
+        bodyColor: const Color(0xFF0F172A),
+        displayColor: const Color(0xFF0F172A),
+      ),
+      appBarTheme: const AppBarTheme(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        centerTitle: false,
+        iconTheme: IconThemeData(color: Color(0xFF0F172A)),
+        titleTextStyle: TextStyle(color: Color(0xFF0F172A), fontSize: 20, fontWeight: FontWeight.w800, letterSpacing: -0.5),
+      ),
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: Colors.black.withOpacity(0.02),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.black.withOpacity(0.06)),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.black.withOpacity(0.06)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: accentOrange, width: 2),
+        ),
+        labelStyle: const TextStyle(color: Color(0xFF64748B), fontSize: 13),
+        hintStyle: const TextStyle(color: Colors.black38, fontSize: 13),
+      ),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: accentOrange,
+          foregroundColor: Colors.white,
+          minimumSize: const Size(88, 48),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          elevation: 4,
+          shadowColor: accentOrange.withOpacity(0.25),
+          textStyle: const TextStyle(fontWeight: FontWeight.w900, letterSpacing: 0.5, fontSize: 14),
+        ),
+      ),
+      cardTheme: CardThemeData(
+        color: Colors.white,
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: BorderSide(color: Colors.black.withOpacity(0.05)),
+        ),
+      ),
+    );
+  }
 }

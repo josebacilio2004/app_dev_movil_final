@@ -67,15 +67,23 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     try {
       final authenticated = await _localAuth.authenticate(
         localizedReason: 'Autentícate con tu huella para iniciar sesión rápidamente',
+        options: const AuthenticationOptions(
+          biometricOnly: true,
+          stickyAuth: true,
+        ),
       );
 
       if (authenticated) {
-        setState(() => _isLoading = true);
         final prefs = await SharedPreferences.getInstance();
         final identifier = prefs.getString('bio_identifier') ?? '';
         final password = prefs.getString('bio_password') ?? '';
 
         if (identifier.isNotEmpty && password.isNotEmpty) {
+          setState(() {
+            _idController.text = identifier;
+            _passwordController.text = password;
+            _isLoading = true;
+          });
           final authService = ref.read(authServiceProvider);
           
           final user = await authService.signIn(identifier, password);

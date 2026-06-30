@@ -279,7 +279,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       
                       const SizedBox(height: 24),
                       Text(
-                        'CIERRE AUTOMÁTICO DE SESIÓN',
+                        'PREFERENCIAS DE INTERFAZ Y ALERTAS',
                         style: GoogleFonts.outfit(
                           color: AppTheme.textGray,
                           fontSize: 10,
@@ -295,13 +295,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
+                            // Fila de cambiar Tema claro/oscuro
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 Row(
                                   children: [
                                     const Icon(
-                                      Icons.security_rounded,
+                                      Icons.palette_rounded,
                                       color: AppTheme.accentOrange,
                                       size: 28,
                                     ),
@@ -310,7 +311,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
                                         Text(
-                                          'Cierre Automático',
+                                          'Tema Claro (Light Mode)',
                                           style: GoogleFonts.outfit(
                                             color: Colors.white,
                                             fontWeight: FontWeight.bold,
@@ -319,7 +320,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                                         ),
                                         const SizedBox(height: 2),
                                         const Text(
-                                          'Elige cuándo se cerrará tu sesión.',
+                                          'Activa el tema de diseño claro.',
                                           style: TextStyle(
                                             color: AppTheme.textGray,
                                             fontSize: 10,
@@ -329,51 +330,84 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                                     ),
                                   ],
                                 ),
+                                Switch(
+                                  value: ref.watch(themeModeProvider) == ThemeMode.light,
+                                  onChanged: (isLight) {
+                                    ref.read(themeModeProvider.notifier).toggleTheme(isLight);
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(isLight ? 'Tema Claro activado.' : 'Tema Oscuro activado.'),
+                                        backgroundColor: AppTheme.successGreen,
+                                        duration: const Duration(seconds: 1),
+                                      ),
+                                    );
+                                  },
+                                  activeColor: AppTheme.accentOrange,
+                                  activeTrackColor: AppTheme.accentOrange.withOpacity(0.3),
+                                  inactiveThumbColor: AppTheme.textGray,
+                                  inactiveTrackColor: AppTheme.surfaceDark,
+                                ),
                               ],
                             ),
-                            const SizedBox(height: 20),
-                            DropdownButtonFormField<AutoLogoutPolicy>(
-                              value: ref.watch(autoLogoutPolicyProvider),
-                              dropdownColor: AppTheme.surfaceDark,
-                              decoration: InputDecoration(
-                                labelText: 'MÉTODO DE EXPIRACIÓN',
-                                labelStyle: const TextStyle(color: AppTheme.accentOrange, fontSize: 11, fontWeight: FontWeight.bold),
-                                fillColor: Colors.white.withOpacity(0.01),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                  borderSide: BorderSide(color: Colors.white.withOpacity(0.08)),
+                            
+                            const Padding(
+                              padding: EdgeInsets.symmetric(vertical: 16),
+                              child: Divider(color: Colors.white10),
+                            ),
+
+                            // Fila de notificaciones habilitadas/deshabilitadas
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Row(
+                                  children: [
+                                    const Icon(
+                                      Icons.notifications_active_rounded,
+                                      color: AppTheme.accentOrange,
+                                      size: 28,
+                                    ),
+                                    const SizedBox(width: 16),
+                                    Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          'Notificaciones de la App',
+                                          style: GoogleFonts.outfit(
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 14,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 2),
+                                        const Text(
+                                          'Activa o desactiva alertas del sistema.',
+                                          style: TextStyle(
+                                            color: AppTheme.textGray,
+                                            fontSize: 10,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
                                 ),
-                              ),
-                              items: const [
-                                DropdownMenuItem(
-                                  value: AutoLogoutPolicy.inactivity,
-                                  child: Text('Por inactividad (5 minutos)', style: TextStyle(fontSize: 13)),
-                                ),
-                                DropdownMenuItem(
-                                  value: AutoLogoutPolicy.minimize,
-                                  child: Text('Al minimizar la aplicación', style: TextStyle(fontSize: 13)),
-                                ),
-                                DropdownMenuItem(
-                                  value: AutoLogoutPolicy.both,
-                                  child: Text('Ambos métodos (Recomendado)', style: TextStyle(fontSize: 13)),
-                                ),
-                                DropdownMenuItem(
-                                  value: AutoLogoutPolicy.disabled,
-                                  child: Text('Desactivado', style: TextStyle(fontSize: 13)),
+                                Switch(
+                                  value: ref.watch(notificationsEnabledProvider),
+                                  onChanged: (enabled) {
+                                    ref.read(notificationsEnabledProvider.notifier).toggleNotifications(enabled);
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(enabled ? 'Notificaciones activadas.' : 'Notificaciones desactivadas.'),
+                                        backgroundColor: AppTheme.successGreen,
+                                        duration: const Duration(seconds: 1),
+                                      ),
+                                    );
+                                  },
+                                  activeColor: AppTheme.accentOrange,
+                                  activeTrackColor: AppTheme.accentOrange.withOpacity(0.3),
+                                  inactiveThumbColor: AppTheme.textGray,
+                                  inactiveTrackColor: AppTheme.surfaceDark,
                                 ),
                               ],
-                              onChanged: (policy) {
-                                if (policy != null) {
-                                  ref.read(autoLogoutPolicyProvider.notifier).setPolicy(policy);
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text('Política de sesión actualizada a: ${policy == AutoLogoutPolicy.inactivity ? "Inactividad" : policy == AutoLogoutPolicy.minimize ? "Al minimizar" : policy == AutoLogoutPolicy.both ? "Ambos métodos" : "Desactivado"}'),
-                                      backgroundColor: AppTheme.successGreen,
-                                      duration: const Duration(seconds: 2),
-                                    ),
-                                  );
-                                }
-                              },
                             ),
                           ],
                         ),
