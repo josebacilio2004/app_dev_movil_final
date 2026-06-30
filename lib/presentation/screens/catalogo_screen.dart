@@ -2081,6 +2081,7 @@ class _CatalogoScreenState extends ConsumerState<CatalogoScreen> with SingleTick
     final commentController = TextEditingController();
     XFile? pickedImage;
     String? base64Image;
+    bool isSubmitting = false;
 
     showDialog(
       context: context,
@@ -2175,7 +2176,7 @@ class _CatalogoScreenState extends ConsumerState<CatalogoScreen> with SingleTick
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
                       ElevatedButton.icon(
-                        onPressed: () => _pickImage(ImageSource.camera),
+                        onPressed: isSubmitting ? null : () => _pickImage(ImageSource.camera),
                         icon: const Icon(Icons.camera_alt_outlined, size: 14),
                         label: const Text('CÁMARA', style: TextStyle(fontSize: 10)),
                         style: ElevatedButton.styleFrom(
@@ -2185,7 +2186,7 @@ class _CatalogoScreenState extends ConsumerState<CatalogoScreen> with SingleTick
                         ),
                       ),
                       ElevatedButton.icon(
-                        onPressed: () => _pickImage(ImageSource.gallery),
+                        onPressed: isSubmitting ? null : () => _pickImage(ImageSource.gallery),
                         icon: const Icon(Icons.photo_library_outlined, size: 14),
                         label: const Text('GALERÍA', style: TextStyle(fontSize: 10)),
                         style: ElevatedButton.styleFrom(
@@ -2196,52 +2197,94 @@ class _CatalogoScreenState extends ConsumerState<CatalogoScreen> with SingleTick
                       ),
                     ],
                   ),
+                  if (isSubmitting) ...[
+                    const SizedBox(height: 16),
+                    const LinearProgressIndicator(color: AppTheme.accentOrange, backgroundColor: Colors.white10),
+                  ],
                 ],
               ),
             ),
             actions: [
               TextButton(
-                onPressed: () => Navigator.pop(ctx),
+                onPressed: isSubmitting ? null : () => Navigator.pop(ctx),
                 child: const Text('CANCELAR', style: TextStyle(color: AppTheme.textGray)),
               ),
               ElevatedButton(
-                onPressed: () async {
-                  final currentUser = FirebaseAuth.instance.currentUser;
-                  final firestore = FirebaseFirestore.instance;
-                  
-                  String userName = 'Cliente Aly';
-                  if (currentUser != null) {
-                    final userDoc = await firestore.collection('users').doc(currentUser.uid).get();
-                    if (userDoc.exists) {
-                      userName = userDoc.data()?['nombre'] ?? userDoc.data()?['email'] ?? 'Comprador Aly';
-                    } else {
-                      userName = currentUser.displayName ?? currentUser.email ?? 'Comprador Aly';
-                    }
-                  }
+                onPressed: isSubmitting
+                    ? null
+                    : () async {
+                        setState(() => isSubmitting = true);
+                        try {
+                          final currentUser = FirebaseAuth.instance.currentUser;
+                          final firestore = FirebaseFirestore.instance;
 
-                  await firestore
-                      .collection('catalogo_productos')
-                      .doc(producto.id)
-                      .collection('resenas')
-                      .add({
-                    'usuario_nombre': userName,
-                    'estrellas': selectedRating,
-                    'comentario': commentController.text.trim(),
-                    'fecha': DateTime.now().toIso8601String(),
-                    'imagen_base64': base64Image,
-                  });
+                          if (currentUser == null) {
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Debes iniciar sesión para valorar un producto.'),
+                                  backgroundColor: Colors.red,
+                                ),
+                              );
+                            }
+                            setState(() => isSubmitting = false);
+                            return;
+                          }
 
-                  if (context.mounted) {
-                    Navigator.pop(ctx);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('¡Muchas gracias por valorar este producto! Reseña publicada.'),
-                        backgroundColor: AppTheme.successGreen,
-                      ),
-                    );
-                  }
-                },
-                child: const Text('ENVIAR'),
+                          String userName = 'Cliente Aly';
+                          try {
+                            final userDoc = await firestore.collection('users').doc(currentUser.uid).get();
+                            if (userDoc.exists) {
+                              userName = userDoc.data()?['nombre'] ?? userDoc.data()?['email'] ?? 'Comprador Aly';
+                            } else {
+                              userName = currentUser.displayName ?? currentUser.email ?? 'Comprador Aly';
+                            }
+                          } catch (_) {
+                            userName = currentUser.displayName ?? currentUser.email ?? 'Comprador Aly';
+                          }
+
+                          await firestore
+                              .collection('catalogo_productos')
+                              .doc(producto.id)
+                              .collection('resenas')
+                              .add({
+                            'usuario_nombre': userName,
+                            'estrellas': selectedRating,
+                            'comentario': commentController.text.trim(),
+                            'fecha': DateTime.now().toIso8601String(),
+                            'imagen_base64': base64Image,
+                          });
+
+                          if (context.mounted) {
+                            Navigator.pop(ctx);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('¡Muchas gracias por valorar este producto! Reseña publicada.'),
+                                backgroundColor: AppTheme.successGreen,
+                              ),
+                            );
+                          }
+                        } catch (e) {
+                          debugPrint('Error al enviar reseña: $e');
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Error al publicar la reseña: ${e.toString()}'),
+                                backgroundColor: Colors.red,
+                                duration: const Duration(seconds: 4),
+                              ),
+                            );
+                          }
+                          setState(() => isSubmitting = false);
+                        }
+                      },
+                child: isSubmitting
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      )
+                    : const Text('ENVIAR'),
               ),
             ],
           );
