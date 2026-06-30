@@ -426,7 +426,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             );
 
     return Scaffold(
-      backgroundColor: cs.scaffoldBackgroundColor ?? cs.surface,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       drawer: const AppDrawer(currentRoute: 'settings'),
       appBar: appBar,
       body: mainContent,

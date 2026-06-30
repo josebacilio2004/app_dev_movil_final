@@ -291,7 +291,7 @@ class _SeguimientoDeliveryScreenState extends State<SeguimientoDeliveryScreen> {
     });
   }
 
-  void _handleDeliveryArrived() {
+  Future<void> _handleDeliveryArrived() async {
     setState(() {
       _deliveryFinished = true;
       _statusMessage = '¡Pedido Entregado!';
@@ -304,7 +304,7 @@ class _SeguimientoDeliveryScreenState extends State<SeguimientoDeliveryScreen> {
     final String? oId = widget.orderId;
     if (oId != null && oId.isNotEmpty) {
       try {
-        FirebaseFirestore.instance
+        await FirebaseFirestore.instance
             .collection('pedidos')
             .doc(oId)
             .update({
@@ -313,28 +313,46 @@ class _SeguimientoDeliveryScreenState extends State<SeguimientoDeliveryScreen> {
         });
         debugPrint('✅ Firestore: Estado del pedido $oId actualizado a "entregado" y tracking finalizado');
       } catch (err) {
-        debugPrint('⚠️ Firestore error al actualizar pedido: $err');
+        debugPrint('⚠️ Firestore error al actualizar pedido $oId: $err');
+        // Intento secundario: buscar por comprador y actualizar
+        try {
+          final currentUser = FirebaseAuth.instance.currentUser;
+          if (currentUser != null) {
+            final snap = await FirebaseFirestore.instance
+                .collection('pedidos')
+                .doc(oId)
+                .get();
+            if (snap.exists) {
+              await snap.reference.update({
+                'estado': 'entregado',
+                'tracking_enabled': false,
+              });
+              debugPrint('✅ Firestore (reintento): Pedido $oId marcado como entregado');
+            }
+          }
+        } catch (e2) {
+          debugPrint('⚠️ Firestore reintento fallido: $e2');
+        }
       }
     } else {
+      // Sin orderId: buscar el pedido "pendiente" más reciente del usuario
       try {
         final currentUser = FirebaseAuth.instance.currentUser;
         if (currentUser != null) {
-          FirebaseFirestore.instance
+          final snap = await FirebaseFirestore.instance
               .collection('pedidos')
               .where('comprador_id', isEqualTo: currentUser.uid)
               .where('estado', isEqualTo: 'pendiente')
               .orderBy('fecha_pedido', descending: true)
               .limit(1)
-              .get()
-              .then((snap) {
-            if (snap.docs.isNotEmpty) {
-              snap.docs.first.reference.update({
-                'estado': 'entregado',
-                'tracking_enabled': false,
-              });
-              debugPrint('✅ Firestore: Estado del último pedido pendiente actualizado a "entregado"');
-            }
-          });
+              .get();
+          if (snap.docs.isNotEmpty) {
+            await snap.docs.first.reference.update({
+              'estado': 'entregado',
+              'tracking_enabled': false,
+            });
+            debugPrint('✅ Firestore: Último pedido pendiente del usuario marcado como entregado');
+          }
         }
       } catch (err) {
         debugPrint('⚠️ Firestore fallback error: $err');
