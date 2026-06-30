@@ -50,17 +50,13 @@ class _BoletasScreenState extends ConsumerState<BoletasScreen> {
     if (user == null) return const SizedBox.shrink();
 
     final firestoreService = ref.watch(firestoreServiceProvider);
-    final bool isWeb = kIsWeb || MediaQuery.of(context).size.width >= 900;
-
     final appBar = AppBar(
-      leading: isWeb
-          ? null
-          : Builder(
-              builder: (context) => IconButton(
-                icon: const Icon(Icons.menu_rounded, color: AppTheme.accentOrange, size: 28),
-                onPressed: () => Scaffold.of(context).openDrawer(),
-              ),
-            ),
+      leading: Builder(
+        builder: (context) => IconButton(
+          icon: const Icon(Icons.menu_rounded, color: AppTheme.accentOrange, size: 28),
+          onPressed: () => Scaffold.of(context).openDrawer(),
+        ),
+      ),
       title: Text(
         'MIS BOLETAS / FACTURAS',
         style: GoogleFonts.outfit(
@@ -206,30 +202,12 @@ class _BoletasScreenState extends ConsumerState<BoletasScreen> {
      ),
     );
 
-    if (isWeb) {
-      return Scaffold(
-        backgroundColor: AppTheme.primaryDark,
-        body: Row(
-          children: [
-            WebSidebar(currentRoute: 'invoices'),
-            Expanded(
-              child: Scaffold(
-                backgroundColor: Colors.transparent,
-                appBar: appBar,
-                body: mainContent,
-              ),
-            ),
-          ],
-        ),
-      );
-    } else {
-      return Scaffold(
-        backgroundColor: AppTheme.primaryDark,
-        drawer: const AppDrawer(currentRoute: 'invoices'),
-        appBar: appBar,
-        body: mainContent,
-      );
-    }
+    return Scaffold(
+      backgroundColor: AppTheme.primaryDark,
+      drawer: const AppDrawer(currentRoute: 'invoices'),
+      appBar: appBar,
+      body: mainContent,
+    );
   }
 
   Widget _buildSearchBar(String role) {

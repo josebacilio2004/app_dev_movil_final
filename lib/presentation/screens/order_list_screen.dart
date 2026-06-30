@@ -12,17 +12,13 @@ class OrderListScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final ordersAsync = ref.watch(ordersStreamProvider);
-    final bool isWeb = kIsWeb || MediaQuery.of(context).size.width >= 900;
-
     final appBar = AppBar(
-      leading: isWeb
-          ? null
-          : Builder(
-              builder: (context) => IconButton(
-                icon: const Icon(Icons.menu_rounded, color: AppTheme.accentOrange, size: 28),
-                onPressed: () => Scaffold.of(context).openDrawer(),
-              ),
-            ),
+      leading: Builder(
+        builder: (context) => IconButton(
+          icon: const Icon(Icons.menu_rounded, color: AppTheme.accentOrange, size: 28),
+          onPressed: () => Scaffold.of(context).openDrawer(),
+        ),
+      ),
       title: const Text('PEDIDOS ALY', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16, letterSpacing: 1.5)),
       backgroundColor: Colors.transparent,
       elevation: 0,
@@ -39,30 +35,12 @@ class OrderListScreen extends ConsumerWidget {
       ),
     );
 
-    if (isWeb) {
-      return Scaffold(
-        backgroundColor: AppTheme.primaryDark,
-        body: Row(
-          children: [
-            const WebSidebar(currentRoute: 'orders'),
-            Expanded(
-              child: Scaffold(
-                backgroundColor: Colors.transparent,
-                appBar: appBar,
-                body: mainContent,
-              ),
-            ),
-          ],
-        ),
-      );
-    } else {
-      return Scaffold(
-        backgroundColor: AppTheme.primaryDark,
-        drawer: const AppDrawer(currentRoute: 'orders'),
-        appBar: appBar,
-        body: mainContent,
-      );
-    }
+    return Scaffold(
+      backgroundColor: AppTheme.primaryDark,
+      drawer: const AppDrawer(currentRoute: 'orders'),
+      appBar: appBar,
+      body: mainContent,
+    );
   }
 
   Widget _buildOrderList(List<Map<String, dynamic>> orders) {

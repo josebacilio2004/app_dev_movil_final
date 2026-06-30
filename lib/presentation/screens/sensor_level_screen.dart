@@ -164,21 +164,17 @@ class _SensorLevelScreenState extends State<SensorLevelScreen> {
   Widget build(BuildContext context) {
     final Size containerSize = const Size(300, 300);
     final themeColor = _isAligned ? AppTheme.successGreen : AppTheme.accentOrange;
-    final bool isWeb = kIsWeb || MediaQuery.of(context).size.width >= 900;
-
     final appBar = AppBar(
       title: Text(
         'NIVELADOR DIGITAL INDUSTRIAL',
         style: GoogleFonts.outfit(fontWeight: FontWeight.w900, fontSize: 13, letterSpacing: 1.5),
       ),
-      leading: isWeb
-          ? null
-          : Builder(
-              builder: (context) => IconButton(
-                icon: const Icon(Icons.menu_rounded, color: AppTheme.accentOrange, size: 28),
-                onPressed: () => Scaffold.of(context).openDrawer(),
-              ),
-            ),
+      leading: Builder(
+        builder: (context) => IconButton(
+          icon: const Icon(Icons.menu_rounded, color: AppTheme.accentOrange, size: 28),
+          onPressed: () => Scaffold.of(context).openDrawer(),
+        ),
+      ),
     );
 
     final mainContent = SingleChildScrollView(
@@ -221,30 +217,12 @@ class _SensorLevelScreenState extends State<SensorLevelScreen> {
       ),
     );
 
-    if (isWeb) {
-      return Scaffold(
-        backgroundColor: AppTheme.primaryDark,
-        body: Row(
-          children: [
-            const WebSidebar(currentRoute: 'sensor_level'),
-            Expanded(
-              child: Scaffold(
-                backgroundColor: Colors.transparent,
-                appBar: appBar,
-                body: mainContent,
-              ),
-            ),
-          ],
-        ),
-      );
-    } else {
-      return Scaffold(
-        backgroundColor: AppTheme.primaryDark,
-        drawer: const AppDrawer(currentRoute: 'sensor_level'),
-        appBar: appBar,
-        body: mainContent,
-      );
-    }
+    return Scaffold(
+      backgroundColor: AppTheme.primaryDark,
+      drawer: const AppDrawer(currentRoute: 'leveler'),
+      appBar: appBar,
+      body: mainContent,
+    );
   }
 
   Widget _buildHeaderCard() {

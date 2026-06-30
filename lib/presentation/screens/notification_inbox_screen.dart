@@ -32,7 +32,6 @@ class _NotificationInboxScreenState extends ConsumerState<NotificationInboxScree
   @override
   Widget build(BuildContext context) {
     final notifications = ref.watch(notificationHistoryProvider);
-    final bool isWeb = kIsWeb || MediaQuery.of(context).size.width >= 900;
 
     // Filtrar notificaciones por búsqueda
     final filteredNotifications = notifications.where((n) {
@@ -42,14 +41,12 @@ class _NotificationInboxScreenState extends ConsumerState<NotificationInboxScree
     }).toList();
 
     final appBar = AppBar(
-      leading: isWeb
-          ? null
-          : Builder(
-              builder: (context) => IconButton(
-                icon: const Icon(Icons.menu_rounded, color: AppTheme.accentOrange, size: 28),
-                onPressed: () => Scaffold.of(context).openDrawer(),
-              ),
-            ),
+      leading: Builder(
+        builder: (context) => IconButton(
+          icon: const Icon(Icons.menu_rounded, color: AppTheme.accentOrange, size: 28),
+          onPressed: () => Scaffold.of(context).openDrawer(),
+        ),
+      ),
       title: Text(
         'BANDEJA DE AVISOS',
         style: GoogleFonts.outfit(
@@ -107,30 +104,12 @@ class _NotificationInboxScreenState extends ConsumerState<NotificationInboxScree
       ),
     );
 
-    if (isWeb) {
-      return Scaffold(
-        backgroundColor: AppTheme.primaryDark,
-        body: Row(
-          children: [
-            const WebSidebar(currentRoute: 'notifications'),
-            Expanded(
-              child: Scaffold(
-                backgroundColor: Colors.transparent,
-                appBar: appBar,
-                body: mainContent,
-              ),
-            ),
-          ],
-        ),
-      );
-    } else {
-      return Scaffold(
-        backgroundColor: AppTheme.primaryDark,
-        drawer: const AppDrawer(currentRoute: 'notifications'),
-        appBar: appBar,
-        body: mainContent,
-      );
-    }
+    return Scaffold(
+      backgroundColor: AppTheme.primaryDark,
+      drawer: const AppDrawer(currentRoute: 'notifications'),
+      appBar: appBar,
+      body: mainContent,
+    );
   }
 
   Widget _buildSearchBar() {

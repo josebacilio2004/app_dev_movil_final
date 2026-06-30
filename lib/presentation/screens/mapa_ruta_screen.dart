@@ -392,21 +392,17 @@ class _MapaRutaScreenState extends State<MapaRutaScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final bool isWeb = kIsWeb || MediaQuery.of(context).size.width >= 900;
-
     final appBar = AppBar(
       title: Text(
         'RUTA A TIENDA ALY',
         style: GoogleFonts.outfit(fontWeight: FontWeight.w900, fontSize: 14, letterSpacing: 2),
       ),
-      leading: isWeb
-          ? null
-          : Builder(
-              builder: (context) => IconButton(
-                icon: const Icon(Icons.menu_rounded, color: AppTheme.accentOrange, size: 28),
-                onPressed: () => Scaffold.of(context).openDrawer(),
-              ),
-            ),
+      leading: Builder(
+        builder: (context) => IconButton(
+          icon: const Icon(Icons.menu_rounded, color: AppTheme.accentOrange, size: 28),
+          onPressed: () => Scaffold.of(context).openDrawer(),
+        ),
+      ),
     );
 
     final mainContent = _isLoading
@@ -633,30 +629,12 @@ class _MapaRutaScreenState extends State<MapaRutaScreen> {
               ],
             );
 
-    if (isWeb) {
-      return Scaffold(
-        backgroundColor: AppTheme.primaryDark,
-        body: Row(
-          children: [
-            WebSidebar(currentRoute: 'gps'),
-            Expanded(
-              child: Scaffold(
-                backgroundColor: Colors.transparent,
-                appBar: appBar,
-                body: mainContent,
-              ),
-            ),
-          ],
-        ),
-      );
-    } else {
-      return Scaffold(
-        backgroundColor: AppTheme.primaryDark,
-        drawer: const AppDrawer(currentRoute: 'gps'),
-        appBar: appBar,
-        body: mainContent,
-      );
-    }
+    return Scaffold(
+      backgroundColor: AppTheme.primaryDark,
+      drawer: const AppDrawer(currentRoute: 'gps'),
+      appBar: appBar,
+      body: mainContent,
+    );
   }
 
   Widget _infoColumn(String label, String value, IconData icon) {

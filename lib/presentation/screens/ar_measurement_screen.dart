@@ -221,21 +221,17 @@ class _ArMeasurementScreenState extends ConsumerState<ArMeasurementScreen> {
   Widget build(BuildContext context) {
     final laserColor = _isAligned ? AppTheme.successGreen : AppTheme.errorRed;
     final currentProdData = _products.firstWhere((p) => p['name'] == _selectedProduct);
-    final bool isWeb = kIsWeb || MediaQuery.of(context).size.width >= 900;
-
     final appBar = AppBar(
       title: Text(
         'MEDIDOR LÁSER AR & PROYECCIÓN',
         style: GoogleFonts.outfit(fontWeight: FontWeight.w900, fontSize: 13, letterSpacing: 1.5),
       ),
-      leading: isWeb
-          ? null
-          : Builder(
-              builder: (context) => IconButton(
-                icon: const Icon(Icons.menu_rounded, color: AppTheme.accentOrange, size: 28),
-                onPressed: () => Scaffold.of(context).openDrawer(),
-              ),
-            ),
+      leading: Builder(
+        builder: (context) => IconButton(
+          icon: const Icon(Icons.menu_rounded, color: AppTheme.accentOrange, size: 28),
+          onPressed: () => Scaffold.of(context).openDrawer(),
+        ),
+      ),
       actions: [
         IconButton(
           icon: const Icon(Icons.flip_camera_ios_rounded, color: AppTheme.accentOrange),
@@ -294,30 +290,12 @@ class _ArMeasurementScreenState extends ConsumerState<ArMeasurementScreen> {
       ],
     );
 
-    if (isWeb) {
-      return Scaffold(
-        backgroundColor: AppTheme.primaryDark,
-        body: Row(
-          children: [
-            WebSidebar(currentRoute: 'ar_camera'),
-            Expanded(
-              child: Scaffold(
-                backgroundColor: Colors.transparent,
-                appBar: appBar,
-                body: mainContent,
-              ),
-            ),
-          ],
-        ),
-      );
-    } else {
-      return Scaffold(
-        backgroundColor: AppTheme.primaryDark,
-        drawer: const AppDrawer(currentRoute: 'ar_camera'),
-        appBar: appBar,
-        body: mainContent,
-      );
-    }
+    return Scaffold(
+      backgroundColor: AppTheme.primaryDark,
+      drawer: const AppDrawer(currentRoute: 'ar_camera'),
+      appBar: appBar,
+      body: mainContent,
+    );
   }
 
   Widget _buildSimulatedCameraBackground() {

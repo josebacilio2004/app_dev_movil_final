@@ -8,7 +8,6 @@ import 'package:gestor_invetarios_pedidos_app/core/theme/app_theme.dart';
 import 'package:gestor_invetarios_pedidos_app/presentation/widgets/common/app_drawer.dart';
 import 'package:gestor_invetarios_pedidos_app/presentation/widgets/common/glass_container.dart';
 import 'package:gestor_invetarios_pedidos_app/presentation/providers/settings_provider.dart';
-import 'package:gestor_invetarios_pedidos_app/presentation/widgets/common/web_sidebar.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -132,17 +131,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final bool isWeb = kIsWeb || MediaQuery.of(context).size.width >= 900;
-
     final appBar = AppBar(
-      leading: isWeb
-          ? null
-          : Builder(
-              builder: (context) => IconButton(
-                icon: const Icon(Icons.menu_rounded, color: AppTheme.accentOrange, size: 28),
-                onPressed: () => Scaffold.of(context).openDrawer(),
-              ),
-            ),
+      leading: Builder(
+        builder: (context) => IconButton(
+          icon: const Icon(Icons.menu_rounded, color: AppTheme.accentOrange, size: 28),
+          onPressed: () => Scaffold.of(context).openDrawer(),
+        ),
+      ),
       title: Text(
         'CONFIGURACIÓN',
         style: GoogleFonts.outfit(
@@ -389,29 +384,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               ),
             );
 
-    if (isWeb) {
-      return Scaffold(
-        backgroundColor: AppTheme.primaryDark,
-        body: Row(
-          children: [
-            const WebSidebar(currentRoute: 'settings'),
-            Expanded(
-              child: Scaffold(
-                backgroundColor: Colors.transparent,
-                appBar: appBar,
-                body: mainContent,
-              ),
-            ),
-          ],
-        ),
-      );
-    } else {
-      return Scaffold(
-        backgroundColor: AppTheme.primaryDark,
-        drawer: const AppDrawer(currentRoute: 'settings'),
-        appBar: appBar,
-        body: mainContent,
-      );
-    }
+    return Scaffold(
+      backgroundColor: AppTheme.primaryDark,
+      drawer: const AppDrawer(currentRoute: 'settings'),
+      appBar: appBar,
+      body: mainContent,
+    );
   }
 }

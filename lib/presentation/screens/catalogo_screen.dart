@@ -410,14 +410,12 @@ class _CatalogoScreenState extends ConsumerState<CatalogoScreen> with SingleTick
     final appBar = AppBar(
       backgroundColor: AppTheme.surfaceDark,
       elevation: 0,
-      leading: isWeb
-          ? null
-          : Builder(
-              builder: (context) => IconButton(
-                icon: const Icon(Icons.menu_rounded, color: AppTheme.accentOrange, size: 28),
-                onPressed: () => Scaffold.of(context).openDrawer(),
-              ),
-            ),
+      leading: Builder(
+        builder: (context) => IconButton(
+          icon: const Icon(Icons.menu_rounded, color: AppTheme.accentOrange, size: 28),
+          onPressed: () => Scaffold.of(context).openDrawer(),
+        ),
+      ),
       title: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -546,46 +544,20 @@ class _CatalogoScreenState extends ConsumerState<CatalogoScreen> with SingleTick
       ),
     );
 
-    if (isWeb) {
-      return Scaffold(
-        backgroundColor: AppTheme.primaryDark,
-        floatingActionButton: widget.userRole == 'admin'
-            ? FloatingActionButton(
-                backgroundColor: AppTheme.accentOrange,
-                foregroundColor: Colors.white,
-                child: const Icon(Icons.add_rounded),
-                onPressed: () => _openAddEditProductDialog(),
-              )
-            : null,
-        body: Row(
-          children: [
-            const WebSidebar(currentRoute: 'catalog'),
-            Expanded(
-              child: Scaffold(
-                backgroundColor: Colors.transparent,
-                appBar: appBar,
-                body: mainContent,
-              ),
-            ),
-          ],
-        ),
-      );
-    } else {
-      return Scaffold(
-        backgroundColor: AppTheme.primaryDark,
-        drawer: const AppDrawer(currentRoute: 'catalog'),
-        floatingActionButton: widget.userRole == 'admin'
-            ? FloatingActionButton(
-                backgroundColor: AppTheme.accentOrange,
-                foregroundColor: Colors.white,
-                child: const Icon(Icons.add_rounded),
-                onPressed: () => _openAddEditProductDialog(),
-              )
-            : null,
-        appBar: appBar,
-        body: mainContent,
-      );
-    }
+    return Scaffold(
+      backgroundColor: AppTheme.primaryDark,
+      drawer: const AppDrawer(currentRoute: 'catalog'),
+      floatingActionButton: widget.userRole == 'admin'
+          ? FloatingActionButton(
+              backgroundColor: AppTheme.accentOrange,
+              foregroundColor: Colors.white,
+              child: const Icon(Icons.add_rounded),
+              onPressed: () => _openAddEditProductDialog(),
+            )
+          : null,
+      appBar: appBar,
+      body: mainContent,
+    );
   }
 
   Widget _buildSearchBar() {
