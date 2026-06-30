@@ -175,6 +175,13 @@ class WebSidebar extends ConsumerWidget {
                   ),
                   _sidebarItem(
                     context,
+                    label: 'CÓMO LLEGAR A LA TIENDA',
+                    icon: Icons.explore_rounded,
+                    isSelected: currentRoute == 'gps',
+                    onTap: () => _navigate(context, MapaRutaScreen(usuarioId: user.id)),
+                  ),
+                  _sidebarItem(
+                    context,
                     label: 'NIVELADOR DIGITAL ALY',
                     icon: Icons.architecture_rounded,
                     isSelected: currentRoute == 'sensor_level',
