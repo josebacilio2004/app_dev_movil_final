@@ -174,6 +174,7 @@ class _BoletasScreenState extends ConsumerState<BoletasScreen> {
             }).toList();
           }
 
+          final bool isWeb = kIsWeb || MediaQuery.of(context).size.width >= 900;
           return Column(
             children: [
               // Barra de Búsqueda
@@ -183,30 +184,133 @@ class _BoletasScreenState extends ConsumerState<BoletasScreen> {
               _buildAdvancedFiltersPanel(),
               
               Expanded(
-                child: userOrders.isEmpty
-                    ? _buildEmptyState()
-                    : ListView.builder(
-                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                        physics: const BouncingScrollPhysics(),
-                        itemCount: userOrders.length,
-                        itemBuilder: (context, index) {
-                          final o = userOrders[index];
-                          return _buildInvoiceCard(o);
-                        },
-                      ),
+                child: isWeb
+                    ? _buildWebInvoiceTable(userOrders)
+                    : (userOrders.isEmpty
+                        ? _buildEmptyState()
+                        : ListView.builder(
+                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                            physics: const BouncingScrollPhysics(),
+                            itemCount: userOrders.length,
+                            itemBuilder: (context, index) {
+                              final o = userOrders[index];
+                              return _buildInvoiceCard(o);
+                            },
+                          )),
               ),
             ],
           );
         },
       ),
-     ),
-    );
+    ),
+  );
 
     return Scaffold(
       backgroundColor: AppTheme.primaryDark,
       drawer: const AppDrawer(currentRoute: 'invoices'),
       appBar: appBar,
       body: mainContent,
+    );
+  }
+
+  Widget _buildWebInvoiceTable(List<Map<String, dynamic>> orders) {
+    if (orders.isEmpty) {
+      return _buildEmptyState();
+    }
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+      physics: const BouncingScrollPhysics(),
+      child: Center(
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 1000),
+          decoration: BoxDecoration(
+            color: AppTheme.surfaceDark,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.white.withOpacity(0.06)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.4),
+                blurRadius: 30,
+                offset: const Offset(0, 15),
+              ),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(16),
+            child: DataTable(
+              headingRowColor: MaterialStateProperty.all(Colors.white.withOpacity(0.02)),
+              dataRowHeight: 72,
+              horizontalMargin: 24,
+              columns: [
+                DataColumn(label: Text('BOLETA', style: GoogleFonts.outfit(color: AppTheme.accentOrange, fontWeight: FontWeight.bold, fontSize: 13, letterSpacing: 1))),
+                DataColumn(label: Text('FECHA', style: GoogleFonts.outfit(color: AppTheme.accentOrange, fontWeight: FontWeight.bold, fontSize: 13, letterSpacing: 1))),
+                DataColumn(label: Text('ADQUIRIDO POR', style: GoogleFonts.outfit(color: AppTheme.accentOrange, fontWeight: FontWeight.bold, fontSize: 13, letterSpacing: 1))),
+                DataColumn(label: Text('ITEMS', style: GoogleFonts.outfit(color: AppTheme.accentOrange, fontWeight: FontWeight.bold, fontSize: 13, letterSpacing: 1))),
+                DataColumn(label: Text('TOTAL PAGADO', style: GoogleFonts.outfit(color: AppTheme.accentOrange, fontWeight: FontWeight.bold, fontSize: 13, letterSpacing: 1))),
+                DataColumn(label: Text('ACCIONES', style: GoogleFonts.outfit(color: AppTheme.accentOrange, fontWeight: FontWeight.bold, fontSize: 13, letterSpacing: 1))),
+              ],
+              rows: orders.map((o) {
+                final docId = (o['nro_boleta'] ?? o['id'] ?? 'BOL-XXXX').toString();
+                final cleanId = docId.startsWith('B001-') || docId.startsWith('BOL-')
+                    ? docId
+                    : (docId.length > 8 ? docId.substring(0, 8).toUpperCase() : docId.toUpperCase());
+                final fechaRaw = o['fecha_pedido'] ?? DateTime.now().toIso8601String();
+                
+                DateTime parsedDate;
+                try {
+                  parsedDate = DateTime.parse(fechaRaw);
+                } catch (_) {
+                  parsedDate = DateTime.now();
+                }
+                
+                final formattedDate = DateFormat('dd/MM/yyyy HH:mm', 'es_PE').format(parsedDate);
+                final total = (o['capital_invertido'] as num?)?.toDouble() ?? 0.0;
+                final compradorNombre = o['comprador_nombre'] ?? 'Cliente General';
+                final itemsCount = (o['cantidad'] as num?)?.toInt() ?? 0;
+                final itemsList = o['items'] as List<dynamic>? ?? [];
+
+                return DataRow(
+                  cells: [
+                    DataCell(Text(
+                      cleanId.startsWith('B001-') || cleanId.startsWith('BOL-') ? cleanId : 'BOL-$cleanId',
+                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                    )),
+                    DataCell(Text(
+                      formattedDate,
+                      style: const TextStyle(color: AppTheme.textGray, fontSize: 12),
+                    )),
+                    DataCell(Text(
+                      compradorNombre,
+                      style: const TextStyle(color: Colors.white, fontSize: 13),
+                    )),
+                    DataCell(Text(
+                      '$itemsCount un.',
+                      style: const TextStyle(color: AppTheme.textGray, fontSize: 13),
+                    )),
+                    DataCell(Text(
+                      'S/ ${total.toStringAsFixed(2)}',
+                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                    )),
+                    DataCell(ElevatedButton.icon(
+                      onPressed: () => _showInvoiceDetails(context, docId, compradorNombre, formattedDate, total, itemsList),
+                      icon: const Icon(Icons.picture_as_pdf_rounded, size: 14),
+                      label: const Text('DETALLE / PDF', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.accentOrange.withOpacity(0.1),
+                        foregroundColor: AppTheme.accentOrange,
+                        side: const BorderSide(color: AppTheme.accentOrange, width: 1),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      ),
+                    )),
+                  ],
+                );
+              }).toList(),
+            ),
+          ),
+        ),
+      ),
     );
   }
 

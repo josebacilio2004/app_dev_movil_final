@@ -1,11 +1,12 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:gestor_invetarios_pedidos_app/core/theme/app_theme.dart';
 import 'package:gestor_invetarios_pedidos_app/data/services/gemini_service.dart';
 import 'package:gestor_invetarios_pedidos_app/presentation/widgets/common/app_drawer.dart';
 import 'package:gestor_invetarios_pedidos_app/presentation/widgets/common/glass_container.dart';
-import 'package:gestor_invetarios_pedidos_app/presentation/widgets/common/web_sidebar.dart';
 
 class GeminiChatScreen extends StatefulWidget {
   const GeminiChatScreen({super.key});
@@ -28,6 +29,63 @@ class _GeminiChatScreenState extends State<GeminiChatScreen> {
     '⚡ Recomendar rotomartillo para concreto',
     '📦 ¿Qué marcas de EPP distribuyen?'
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadChatHistory();
+  }
+
+  Future<void> _loadChatHistory() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final historyStr = prefs.getString('gemini_chat_history');
+      if (historyStr != null && historyStr.isNotEmpty) {
+        final List<dynamic> decoded = jsonDecode(historyStr);
+        setState(() {
+          _messages.clear();
+          for (var item in decoded) {
+            _messages.add({
+              'role': item['role']?.toString() ?? '',
+              'text': item['text']?.toString() ?? '',
+            });
+          }
+        });
+        _scrollToBottom();
+      }
+    } catch (e) {
+      debugPrint('Error al cargar historial de chat: $e');
+    }
+  }
+
+  Future<void> _saveChatHistory() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('gemini_chat_history', jsonEncode(_messages));
+    } catch (e) {
+      debugPrint('Error al guardar historial de chat: $e');
+    }
+  }
+
+  Future<void> _clearChatHistory() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('gemini_chat_history');
+      setState(() {
+        _messages.clear();
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Historial de conversación vaciado.'),
+            backgroundColor: AppTheme.accentOrange,
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('Error al vaciar historial de chat: $e');
+    }
+  }
 
   @override
   void dispose() {
@@ -57,6 +115,7 @@ class _GeminiChatScreenState extends State<GeminiChatScreen> {
     });
     _messageController.clear();
     _scrollToBottom();
+    await _saveChatHistory();
 
     try {
       final response = await _geminiService.chat(history: _messages);
@@ -75,6 +134,7 @@ class _GeminiChatScreenState extends State<GeminiChatScreen> {
         _isLoading = false;
       });
       _scrollToBottom();
+      await _saveChatHistory();
     }
   }
 
@@ -91,6 +151,41 @@ class _GeminiChatScreenState extends State<GeminiChatScreen> {
           onPressed: () => Scaffold.of(context).openDrawer(),
         ),
       ),
+      actions: [
+        if (_messages.isNotEmpty)
+          IconButton(
+            icon: const Icon(Icons.delete_sweep_rounded, color: Colors.redAccent, size: 24),
+            onPressed: () {
+              showDialog(
+                context: context,
+                builder: (context) => AlertDialog(
+                  backgroundColor: AppTheme.surfaceDark,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  title: const Text('Vaciar Conversación', style: TextStyle(color: Colors.white)),
+                  content: const Text(
+                    '¿Estás seguro de que deseas eliminar todo el historial de chat con la IA? Esta acción no se puede deshacer.',
+                    style: TextStyle(color: AppTheme.textGray, fontSize: 13),
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('CANCELAR', style: TextStyle(color: AppTheme.textGray)),
+                    ),
+                    TextButton(
+                      onPressed: () {
+                        Navigator.pop(context);
+                        _clearChatHistory();
+                      },
+                      child: const Text('VACIAR', style: TextStyle(color: Colors.redAccent)),
+                    ),
+                  ],
+                ),
+              );
+            },
+            tooltip: 'Vaciar Historial',
+          ),
+        const SizedBox(width: 8),
+      ],
     );
 
     final mainContent = Center(

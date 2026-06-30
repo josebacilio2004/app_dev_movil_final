@@ -16,6 +16,10 @@ import 'package:printing/printing.dart';
 import 'package:gestor_invetarios_pedidos_app/presentation/screens/seguimiento_delivery_screen.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
+import 'package:gestor_invetarios_pedidos_app/data/services/geolocalizacion_service.dart';
+import 'package:gestor_invetarios_pedidos_app/data/models/ruta_model.dart';
 
 class PaymentGatewayScreen extends ConsumerStatefulWidget {
   const PaymentGatewayScreen({super.key});
@@ -41,6 +45,71 @@ class _PaymentGatewayScreenState extends ConsumerState<PaymentGatewayScreen> wit
 
   List<CartItem> _purchasedItems = [];
   double _purchasedTotal = 0.0;
+
+  // Mapa y cálculo de ruta para delivery
+  LatLng _selectedLatLng = const LatLng(GeolocalizacionService.tiendaLat, GeolocalizacionService.tiendaLng);
+  final MapController _mapController = MapController();
+  RutaModel? _checkoutRoute;
+  bool _calculatingRoute = false;
+
+  List<LatLng> _decodePolyline(String encoded) {
+    List<LatLng> points = [];
+    int index = 0, len = encoded.length;
+    int lat = 0, lng = 0;
+
+    while (index < len) {
+      int b, shift = 0, result = 0;
+      do {
+        b = encoded.codeUnitAt(index++) - 63;
+        result |= (b & 0x1f) << shift;
+        shift += 5;
+      } while (b >= 0x20);
+      int dlat = ((result & 1) != 0 ? ~(result >> 1) : (result >> 1));
+      lat += dlat;
+
+      shift = 0;
+      result = 0;
+      do {
+        b = encoded.codeUnitAt(index++) - 63;
+        result |= (b & 0x1f) << shift;
+        shift += 5;
+      } while (b >= 0x20);
+      int dlng = ((result & 1) != 0 ? ~(result >> 1) : (result >> 1));
+      lng += dlng;
+
+      points.add(LatLng(lat / 1E5, lng / 1E5));
+    }
+    return points;
+  }
+
+  Future<void> _calculateRouteForCheckout(LatLng destination) async {
+    setState(() {
+      _selectedLatLng = destination;
+      _calculatingRoute = true;
+    });
+
+    try {
+      final route = await GeolocalizacionService().obtenerRuta(
+        origenLat: GeolocalizacionService.tiendaLat,
+        origenLng: GeolocalizacionService.tiendaLng,
+        destinoLat: destination.latitude,
+        destinoLng: destination.longitude,
+      );
+
+      setState(() {
+        _checkoutRoute = route;
+        _calculatingRoute = false;
+        if (route != null) {
+          _addressController.text = 'Coordenadas: ${destination.latitude.toStringAsFixed(5)}, ${destination.longitude.toStringAsFixed(5)}';
+        }
+      });
+    } catch (e) {
+      debugPrint('Error al calcular ruta de checkout: $e');
+      setState(() {
+        _calculatingRoute = false;
+      });
+    }
+  }
 
   // Animación para el giro de la tarjeta (CVV focus)
   late AnimationController _flipController;
@@ -193,7 +262,16 @@ class _PaymentGatewayScreenState extends ConsumerState<PaymentGatewayScreen> wit
 
       final cartItems = ref.read(cartProvider);
       final totalToPay = ref.read(cartTotalProvider);
+      _purchasedTotal = totalToPay;
       final cartCount = cartItems.fold<int>(0, (sum, item) => sum + item.cantidad);
+
+      double finalLat = lat ?? GeolocalizacionService.tiendaLat;
+      double finalLng = lng ?? GeolocalizacionService.tiendaLng;
+
+      if (!_isCurrentLocationSelected) {
+        finalLat = _selectedLatLng.latitude;
+        finalLng = _selectedLatLng.longitude;
+      }
 
       final orderData = {
         'nro_boleta': boletaCode,
@@ -211,8 +289,8 @@ class _PaymentGatewayScreenState extends ConsumerState<PaymentGatewayScreen> wit
         'ganancia_real': 0.0,
         'tipo_despacho': _isCurrentLocationSelected ? 'gps' : 'manual',
         'direccion_manual': _isCurrentLocationSelected ? null : _addressController.text.trim(),
-        'latitud': lat,
-        'longitud': lng,
+        'latitud': finalLat,
+        'longitud': finalLng,
         'items': cartItems.map((item) => {
           'producto_id': item.producto.id,
           'cantidad': item.cantidad,
@@ -270,6 +348,14 @@ class _PaymentGatewayScreenState extends ConsumerState<PaymentGatewayScreen> wit
   Future<void> _generatePdfInvoice() async {
     final pdf = pw.Document();
 
+    pw.MemoryImage? logoImage;
+    try {
+      final imageBytes = await rootBundle.load('assets/logo-validado.png');
+      logoImage = pw.MemoryImage(imageBytes.buffer.asUint8List());
+    } catch (e) {
+      debugPrint('Error al cargar logo para PDF: $e');
+    }
+
     pdf.addPage(
       pw.Page(
         pageFormat: PdfPageFormat.a4,
@@ -283,20 +369,32 @@ class _PaymentGatewayScreenState extends ConsumerState<PaymentGatewayScreen> wit
                 pw.Row(
                   mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                   children: [
-                    pw.Column(
+                    pw.Row(
                       crossAxisAlignment: pw.CrossAxisAlignment.start,
                       children: [
-                        pw.Text(
-                          'COMERCIALIZADORA ALY',
-                          style: pw.TextStyle(
-                            fontSize: 22,
-                            fontWeight: pw.FontWeight.bold,
-                            color: PdfColors.orange,
+                        if (logoImage != null)
+                          pw.Container(
+                            margin: const pw.EdgeInsets.only(right: 12),
+                            width: 50,
+                            height: 50,
+                            child: pw.Image(logoImage),
                           ),
+                        pw.Column(
+                          crossAxisAlignment: pw.CrossAxisAlignment.start,
+                          children: [
+                            pw.Text(
+                              'COMERCIALIZADORA ALY',
+                              style: pw.TextStyle(
+                                fontSize: 18,
+                                fontWeight: pw.FontWeight.bold,
+                                color: PdfColors.orange,
+                              ),
+                            ),
+                            pw.Text('Herramientas y Materiales de Construccion'),
+                            pw.Text('RUC: 20123456789'),
+                            pw.Text('Direccion: Calle Real 456, Huancayo'),
+                          ],
                         ),
-                        pw.Text('Herramientas y Materiales de Construccion'),
-                        pw.Text('RUC: 20123456789'),
-                        pw.Text('Direccion: Calle Real 456, Huancayo'),
                       ],
                     ),
                     pw.Column(
@@ -996,7 +1094,7 @@ class _PaymentGatewayScreenState extends ConsumerState<PaymentGatewayScreen> wit
                 value: false,
                 groupValue: _isCurrentLocationSelected,
                 title: const Text('Ingresar una nueva dirección', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold)),
-                subtitle: const Text('Escriba la dirección manualmente', style: TextStyle(color: AppTheme.textGray, fontSize: 11)),
+                subtitle: const Text('Escriba la dirección y ubíquela en el mapa', style: TextStyle(color: AppTheme.textGray, fontSize: 11)),
                 activeColor: AppTheme.accentOrange,
                 onChanged: (val) {
                   if (val != null) setState(() => _isCurrentLocationSelected = val);
@@ -1011,17 +1109,131 @@ class _PaymentGatewayScreenState extends ConsumerState<PaymentGatewayScreen> wit
             controller: _addressController,
             style: const TextStyle(color: Colors.white, fontSize: 13),
             decoration: const InputDecoration(
-              labelText: 'Dirección de Despacho Completa',
-              hintText: 'Av. Las Gardenias 123, Lima',
+              labelText: 'Referencia de la Dirección de Despacho',
+              hintText: 'Ej. Av. Mariátegui 502-672, Huancayo',
               prefixIcon: Icon(Icons.location_on_outlined, size: 20),
             ),
             validator: (value) {
               if (!_isCurrentLocationSelected && (value == null || value.trim().isEmpty)) {
-                return 'Por favor ingrese la dirección de despacho';
+                return 'Por favor ingrese la dirección o referencia';
               }
               return null;
             },
           ),
+          const SizedBox(height: 16),
+          Text(
+            'SELECCIONE EL PUNTO DE ENTREGA EXACTO EN EL MAPA:',
+            style: GoogleFonts.outfit(
+              fontSize: 10,
+              fontWeight: FontWeight.w900,
+              color: AppTheme.textGray,
+              letterSpacing: 1,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Container(
+            height: 250,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.white.withOpacity(0.08)),
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: FlutterMap(
+                mapController: _mapController,
+                options: MapOptions(
+                  initialCenter: const LatLng(GeolocalizacionService.tiendaLat, GeolocalizacionService.tiendaLng),
+                  initialZoom: 14.0,
+                  onTap: (tapPosition, point) {
+                    _calculateRouteForCheckout(point);
+                  },
+                ),
+                children: [
+                  TileLayer(
+                    urlTemplate: 'https://api.mapbox.com/styles/v1/mapbox/dark-v11/tiles/{z}/{x}/{y}?access_token={accessToken}',
+                    additionalOptions: const {
+                      'accessToken': 'pk.eyJ1Ijoiam9zZWJhYyIsImEiOiJjbW9pYTU0MW8wMGM4MnNvZ3NhOHo1NWM4In0.5Gw3E-h62DwI4ks5Y70cDw',
+                    },
+                  ),
+                  if (_checkoutRoute != null && _checkoutRoute!.polyline.isNotEmpty)
+                    PolylineLayer(
+                      polylines: [
+                        Polyline(
+                          points: _decodePolyline(_checkoutRoute!.polyline),
+                          color: AppTheme.accentOrange,
+                          strokeWidth: 4.0,
+                        ),
+                      ],
+                    ),
+                  MarkerLayer(
+                    markers: [
+                      const Marker(
+                        point: LatLng(GeolocalizacionService.tiendaLat, GeolocalizacionService.tiendaLng),
+                        width: 40,
+                        height: 40,
+                        child: Icon(
+                          Icons.store_mall_directory_rounded,
+                          color: AppTheme.successGreen,
+                          size: 30,
+                        ),
+                      ),
+                      Marker(
+                        point: _selectedLatLng,
+                        width: 40,
+                        height: 40,
+                        child: const Icon(
+                          Icons.location_pin,
+                          color: AppTheme.accentOrange,
+                          size: 35,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+          if (_checkoutRoute != null) ...[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppTheme.accentOrange.withOpacity(0.08),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: AppTheme.accentOrange.withOpacity(0.2)),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.directions_car, color: AppTheme.accentOrange, size: 18),
+                      const SizedBox(width: 8),
+                      Text(
+                        'DISTANCIA: ${_checkoutRoute!.distancia}',
+                        style: GoogleFonts.outfit(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  ),
+                  Row(
+                    children: [
+                      const Icon(Icons.timer, color: AppTheme.accentOrange, size: 18),
+                      const SizedBox(width: 8),
+                      Text(
+                        'DURACIÓN: ${_checkoutRoute!.duracion}',
+                        style: GoogleFonts.outfit(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ] else if (_calculatingRoute) ...[
+            const SizedBox(height: 12),
+            const Center(
+              child: CircularProgressIndicator(color: AppTheme.accentOrange, strokeWidth: 2),
+            ),
+          ],
         ],
       ],
     );

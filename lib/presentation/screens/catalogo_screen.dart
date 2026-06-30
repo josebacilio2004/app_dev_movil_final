@@ -490,57 +490,59 @@ class _CatalogoScreenState extends ConsumerState<CatalogoScreen> with SingleTick
     final mainContent = Center(
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 1200),
-        child: Column(
-          children: [
-            // === BARRA DE CONECTIVIDAD OFF-LINE ===
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 300),
-              height: _isOffline ? 36 : 0,
-              width: double.infinity,
-              color: AppTheme.errorRed.withOpacity(0.9),
-              alignment: Alignment.center,
-              child: _isOffline
-                  ? const Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.wifi_off_rounded, color: Colors.white, size: 16),
-                        SizedBox(width: 8),
-                        Text(
-                          'Modo Offline Activo - Cargando datos locales desde caché',
-                          style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
-                        ),
-                      ],
-                    )
-                  : const SizedBox(),
-            ),
-            // === BARRA DE BÚSQUEDA ===
-            _buildSearchBar(),
-            // === FILTROS EXPANDIBLES ===
-            SizeTransition(
-              sizeFactor: _filterAnimation,
-              child: _buildFilterSection(),
-            ),
-            // === CHIPS DE CATEGORÍA RÁPIDOS ===
-            _buildCategoryChips(),
-            // === LISTA DE RESULTADOS ===
-            Expanded(
-              child: ref.watch(catalogoStreamProvider).when(
-                data: (_) {
-                  return results.isEmpty
-                      ? _buildEmptyState(query)
-                      : _buildProductGrid(results);
-                },
-                loading: () => _buildShimmerGrid(),
-                error: (err, stack) => Center(
-                  child: Text(
-                    'Error al cargar catálogo: $err',
-                    style: const TextStyle(color: AppTheme.errorRed),
+        child: isWeb
+            ? _buildWebLayout(results, query)
+            : Column(
+                children: [
+                  // === BARRA DE CONECTIVIDAD OFF-LINE ===
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 300),
+                    height: _isOffline ? 36 : 0,
+                    width: double.infinity,
+                    color: AppTheme.errorRed.withOpacity(0.9),
+                    alignment: Alignment.center,
+                    child: _isOffline
+                        ? const Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.wifi_off_rounded, color: Colors.white, size: 16),
+                              SizedBox(width: 8),
+                              Text(
+                                'Modo Offline Activo - Cargando datos locales desde caché',
+                                style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                              ),
+                            ],
+                          )
+                        : const SizedBox(),
                   ),
-                ),
+                  // === BARRA DE BÚSQUEDA ===
+                  _buildSearchBar(),
+                  // === FILTROS EXPANDIBLES ===
+                  SizeTransition(
+                    sizeFactor: _filterAnimation,
+                    child: _buildFilterSection(),
+                  ),
+                  // === CHIPS DE CATEGORÍA RÁPIDOS ===
+                  _buildCategoryChips(),
+                  // === LISTA DE RESULTADOS ===
+                  Expanded(
+                    child: ref.watch(catalogoStreamProvider).when(
+                      data: (_) {
+                        return results.isEmpty
+                            ? _buildEmptyState(query)
+                            : _buildProductGrid(results);
+                      },
+                      loading: () => _buildShimmerGrid(),
+                      error: (err, stack) => Center(
+                        child: Text(
+                          'Error al cargar catálogo: $err',
+                          style: const TextStyle(color: AppTheme.errorRed),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
-            ),
-          ],
-        ),
       ),
     );
 
@@ -557,6 +559,216 @@ class _CatalogoScreenState extends ConsumerState<CatalogoScreen> with SingleTick
           : null,
       appBar: appBar,
       body: mainContent,
+    );
+  }
+
+  Widget _buildWebLayout(List<CatalogoProducto> results, String query) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // 1. Sidebar de Filtros (Fijo)
+        Container(
+          width: 280,
+          margin: const EdgeInsets.only(left: 16, top: 16, bottom: 24),
+          decoration: BoxDecoration(
+            color: AppTheme.surfaceDark,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.white.withOpacity(0.06)),
+          ),
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'FILTRAR POR',
+                      style: GoogleFonts.outfit(
+                        color: AppTheme.accentOrange,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                        letterSpacing: 1,
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.clear_all_rounded, size: 18, color: AppTheme.textGray),
+                      onPressed: _clearFilters,
+                      tooltip: 'Limpiar Filtros',
+                    ),
+                  ],
+                ),
+                const Divider(color: Colors.white10, height: 20),
+                Text(
+                  'BÚSQUEDA',
+                  style: GoogleFonts.outfit(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 10,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: _searchController,
+                  style: const TextStyle(color: Colors.white, fontSize: 12),
+                  decoration: InputDecoration(
+                    hintText: 'Buscar herramientas...',
+                    hintStyle: const TextStyle(color: AppTheme.textGray),
+                    prefixIcon: const Icon(Icons.search_rounded, size: 16, color: AppTheme.textGray),
+                    fillColor: Colors.white.withOpacity(0.02),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: Colors.white.withOpacity(0.08)),
+                    ),
+                  ),
+                  onChanged: (val) {
+                    ref.read(searchQueryProvider.notifier).state = val;
+                  },
+                ),
+                const SizedBox(height: 20),
+                Text(
+                  'CATEGORÍAS',
+                  style: GoogleFonts.outfit(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 10,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                _buildWebCategoryList(),
+                const SizedBox(height: 20),
+                Text(
+                  'RANGO DE PRECIO',
+                  style: GoogleFonts.outfit(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 10,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                _buildWebPriceSlider(),
+              ],
+            ),
+          ),
+        ),
+
+        // 2. Grilla de Productos
+        Expanded(
+          child: Column(
+            children: [
+              if (_isOffline)
+                Container(
+                  height: 36,
+                  margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                  decoration: BoxDecoration(
+                    color: AppTheme.errorRed.withOpacity(0.9),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  alignment: Alignment.center,
+                  child: const Text(
+                    'Modo Offline - Datos locales',
+                    style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              Expanded(
+                child: ref.watch(catalogoStreamProvider).when(
+                  data: (_) {
+                    if (results.isEmpty) {
+                      return _buildEmptyState(query);
+                    }
+                    return GridView.builder(
+                      padding: const EdgeInsets.all(16),
+                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 3,
+                        crossAxisSpacing: 16,
+                        mainAxisSpacing: 16,
+                        childAspectRatio: 0.72,
+                      ),
+                      itemCount: results.length,
+                      itemBuilder: (context, index) {
+                        final prod = results[index];
+                        return _buildGridCard(prod, index);
+                      },
+                    );
+                  },
+                  loading: () => _buildShimmerGrid(),
+                  error: (err, stack) => Center(
+                    child: Text('Error: $err', style: const TextStyle(color: AppTheme.errorRed)),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildWebCategoryList() {
+    final categories = ['Herramientas Manuales', 'Herramientas Eléctricas', 'Materiales de Construcción', 'Abrasivos y Consumibles', 'Equipos de Protección', 'Instrumentos de Medición'];
+    final selectedCategory = ref.watch(selectedCategoryProvider);
+
+    return Column(
+      children: categories.map((cat) {
+        final isSelected = selectedCategory == cat;
+        return ListTile(
+          onTap: () {
+            ref.read(selectedCategoryProvider.notifier).state = isSelected ? null : cat;
+          },
+          dense: true,
+          contentPadding: EdgeInsets.zero,
+          visualDensity: VisualDensity.compact,
+          leading: Icon(
+            _categoryIcons[cat] ?? Icons.category_rounded,
+            size: 16,
+            color: isSelected ? AppTheme.accentOrange : AppTheme.textGray,
+          ),
+          title: Text(
+            cat,
+            style: TextStyle(
+              color: isSelected ? Colors.white : AppTheme.textGray,
+              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+              fontSize: 11,
+            ),
+          ),
+          trailing: isSelected
+              ? const Icon(Icons.check_circle, color: AppTheme.accentOrange, size: 14)
+              : null,
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _buildWebPriceSlider() {
+    final precioMin = ref.watch(precioMinProvider);
+    final precioMax = ref.watch(precioMaxProvider);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text('Min: S/ ${precioMin.toStringAsFixed(0)}', style: const TextStyle(color: AppTheme.textGray, fontSize: 10)),
+            Text('Max: S/ ${precioMax > 5000 ? "Max" : precioMax.toStringAsFixed(0)}', style: const TextStyle(color: AppTheme.textGray, fontSize: 10)),
+          ],
+        ),
+        RangeSlider(
+          values: RangeValues(precioMin, precioMax > 5000 ? 5000 : precioMax),
+          min: 0,
+          max: 5000,
+          activeColor: AppTheme.accentOrange,
+          inactiveColor: Colors.white10,
+          onChanged: (values) {
+            ref.read(precioMinProvider.notifier).state = values.start;
+            ref.read(precioMaxProvider.notifier).state = values.end >= 5000 ? 999999.0 : values.end;
+          },
+        ),
+      ],
     );
   }
 
@@ -1107,7 +1319,7 @@ class _CatalogoScreenState extends ConsumerState<CatalogoScreen> with SingleTick
           onTap: () => _showProductDetail(producto),
           borderRadius: BorderRadius.circular(16),
           child: Container(
-            height: 130, // Altura fija incrementada para evitar desbordamientos
+            height: 130,
             decoration: BoxDecoration(
               color: AppTheme.surfaceDark,
               borderRadius: BorderRadius.circular(16),
@@ -1163,7 +1375,7 @@ class _CatalogoScreenState extends ConsumerState<CatalogoScreen> with SingleTick
                       ],
                     ),
                   ),
-                  // Detalles a la derecha
+                  // Detalles en el medio
                   Expanded(
                     child: Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -1217,69 +1429,82 @@ class _CatalogoScreenState extends ConsumerState<CatalogoScreen> with SingleTick
                               ),
                             ],
                           ),
-                          const SizedBox(height: 6),
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            crossAxisAlignment: CrossAxisAlignment.end,
                             children: [
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'S/ ${producto.precioUnitario.toStringAsFixed(2)}',
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.w900,
-                                      fontSize: 13,
-                                      color: Colors.white,
-                                    ),
-                                  ),
-                                ],
+                              Text(
+                                'S/ ${producto.precioUnitario.toStringAsFixed(2)}',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w900,
+                                  fontSize: 13,
+                                  color: Colors.white,
+                                ),
                               ),
-                              Row(
-                                children: [
-                                  Text(
-                                    'x ${producto.unidad}  ',
-                                    style: const TextStyle(
-                                      color: AppTheme.textGray,
-                                      fontSize: 8.5,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                  ElevatedButton.icon(
-                                    onPressed: !producto.disponible
-                                        ? null
-                                        : () {
-                                            HapticFeedback.lightImpact();
-                                            ref.read(cartProvider.notifier).addItem(producto);
-                                            ScaffoldMessenger.of(context).showSnackBar(
-                                              SnackBar(
-                                                content: Text('${producto.nombre} agregado al carrito.'),
-                                                backgroundColor: AppTheme.successGreen,
-                                                duration: const Duration(seconds: 1),
-                                              ),
-                                            );
-                                          },
-                                    icon: const Icon(Icons.add_shopping_cart_rounded, size: 12, color: Colors.white),
-                                    label: const Text(
-                                      'AL CARRITO',
-                                      style: TextStyle(fontSize: 8.5, fontWeight: FontWeight.w900, color: Colors.white),
-                                    ),
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: AppTheme.accentOrange,
-                                      disabledBackgroundColor: Colors.white.withOpacity(0.05),
-                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                                      minimumSize: Size.zero,
-                                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(6),
-                                      ),
-                                    ),
-                                  ),
-                                ],
+                              Text(
+                                'x ${producto.unidad}',
+                                style: const TextStyle(
+                                  color: AppTheme.textGray,
+                                  fontSize: 8.5,
+                                  fontWeight: FontWeight.w600,
+                                ),
                               ),
                             ],
                           ),
                         ],
+                      ),
+                    ),
+                  ),
+                  // Botón de Compra Vertical (Extremo derecho)
+                  Material(
+                    color: producto.disponible ? AppTheme.accentOrange : Colors.white.withOpacity(0.05),
+                    child: InkWell(
+                      onTap: !producto.disponible
+                          ? null
+                          : () {
+                              HapticFeedback.lightImpact();
+                              ref.read(cartProvider.notifier).addItem(producto);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('${producto.nombre} agregado al carrito.'),
+                                  backgroundColor: AppTheme.successGreen,
+                                  duration: const Duration(seconds: 1),
+                                ),
+                              );
+                            },
+                      child: Container(
+                        width: 48,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          border: Border(
+                            left: BorderSide(color: Colors.white.withOpacity(0.04)),
+                          ),
+                        ),
+                        child: RotatedBox(
+                          quarterTurns: 3,
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                producto.disponible
+                                    ? Icons.add_shopping_cart_rounded
+                                    : Icons.remove_shopping_cart_rounded,
+                                size: 14,
+                                color: producto.disponible ? Colors.white : AppTheme.textGray,
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                producto.disponible ? 'AL CARRITO' : 'AGOTADO',
+                                style: TextStyle(
+                                  fontSize: 8.5,
+                                  fontWeight: FontWeight.w900,
+                                  color: producto.disponible ? Colors.white : AppTheme.textGray,
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
                     ),
                   ),
