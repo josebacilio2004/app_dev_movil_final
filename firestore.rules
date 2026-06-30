@@ -24,6 +24,13 @@ service cloud.firestore {
     match /catalogo_productos/{productId} {
       allow read: if true;
       allow write: if isAuthenticated() && (getUserRole() == 'admin' || getUserRole() == 'operador');
+
+      // Reglas para reseñas/opiniones - cualquier usuario autenticado puede crear y leer
+      match /resenas/{reviewId} {
+        allow read: if true;
+        allow create: if isAuthenticated();
+        allow update, delete: if isAuthenticated() && (getUserRole() == 'admin' || getUserRole() == 'operador');
+      }
     }
 
     // Reglas para movimientos de inventario (auditoría)
