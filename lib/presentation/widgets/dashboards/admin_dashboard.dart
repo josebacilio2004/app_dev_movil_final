@@ -415,7 +415,7 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             itemCount: displayUsers.length,
-            separatorBuilder: (_, __) => const Divider(color: Colors.white05, height: 16),
+            separatorBuilder: (_, __) => Divider(color: Colors.white.withOpacity(0.05), height: 16),
             itemBuilder: (context, idx) {
               final entry = displayUsers[idx];
               final name = entry.key;

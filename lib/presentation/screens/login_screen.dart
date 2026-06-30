@@ -67,10 +67,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     try {
       final authenticated = await _localAuth.authenticate(
         localizedReason: 'Autentícate con tu huella para iniciar sesión rápidamente',
-        options: const AuthenticationOptions(
-          biometricOnly: true,
-          stickyAuth: true,
-        ),
+        biometricOnly: true,
+        stickyAuth: true,
       );
 
       if (authenticated) {

@@ -212,7 +212,7 @@ class OrderListScreen extends ConsumerWidget {
                 return DataRow(
                   cells: [
                     DataCell(Text(
-                      o['nro_boleta'] ?? id.substring(0, min(id.length, 8)),
+                      o['nro_boleta'] ?? (id.length > 8 ? id.substring(0, 8) : id),
                       style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
                     )),
                     DataCell(Text(

@@ -10,6 +10,7 @@ import 'package:gestor_invetarios_pedidos_app/data/services/google_drive_service
 import 'package:image_picker/image_picker.dart';
 import 'dart:async';
 import 'dart:convert';
+import 'package:intl/intl.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/services.dart';
@@ -1782,6 +1783,7 @@ class _CatalogoScreenState extends ConsumerState<CatalogoScreen> with SingleTick
                           padding: const EdgeInsets.symmetric(vertical: 14),
                         ),
                       ),
+                    ),
                   ],
                   
                   // --- SECCIÓN DE VALORACIONES Y OPINIONES ---
