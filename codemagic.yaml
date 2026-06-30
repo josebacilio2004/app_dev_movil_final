@@ -1,14 +1,16 @@
 workflows:
   android-ios-workflow:
     name: Android & iOS Workflow
-    max_build_duration: 60
+    max_build_duration: 90
     instance_type: mac_mini_m1
     environment:
       flutter: stable
       groups:
-        - ad-hoc-credentials # Agrupar aquí certificados si se desea firma automática
+        - app-store-credentials # iOS: App Store Connect API key (APP_STORE_CONNECT_ISSUER_ID, APP_STORE_CONNECT_KEY_IDENTIFIER, APP_STORE_CONNECT_PRIVATE_KEY)
+        - certificate-credentials # iOS: Certificates (CERTIFICATE_PRIVATE_KEY, DEVELOPER_PORTAL_TEAM_ID)
       vars:
-        PACKAGE_NAME: "com.aly.gestor.inventario"
+        PACKAGE_NAME: "com.jose.stitch.stitchApp"
+        APP_STORE_APP_ID: 1234567890 # Cambiar por el ID real de la app en App Store Connect
     triggering:
       events:
         - push
@@ -23,11 +25,20 @@ workflows:
       - name: Get Flutter packages
         script: |
           flutter pub get
+      - name: Install iOS pods
+        script: |
+          cd ios && pod install
       - name: Build Android APK
         script: |
           flutter build apk --release
+      - name: Build iOS IPA
+        script: |
+          flutter build ipa --release --export-options-plist ios/export_options.plist
     artifacts:
       - build/app/outputs/flutter-apk/*.apk
+      - build/ios/ipa/*.ipa
+      - build/ios/ipa/Runner.ipa
+      - /tmp/xcodebuild_logs/*.log
     publishing:
       email:
         recipients:
@@ -35,3 +46,9 @@ workflows:
         notify:
           success: true
           failure: true
+      app_store_connect:
+        api_key: $APP_STORE_CONNECT_PRIVATE_KEY
+        key_id: $APP_STORE_CONNECT_KEY_IDENTIFIER
+        issuer_id: $APP_STORE_CONNECT_ISSUER_ID
+        submit_to_testflight: true
+        submit_to_app_store: false
