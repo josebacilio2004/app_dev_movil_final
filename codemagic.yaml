@@ -1,16 +1,12 @@
 workflows:
   android-ios-workflow:
     name: Android & iOS Workflow
-    max_build_duration: 90
+    max_build_duration: 60
     instance_type: mac_mini_m1
     environment:
       flutter: stable
-      groups:
-        - app-store-credentials # iOS: App Store Connect API key (APP_STORE_CONNECT_ISSUER_ID, APP_STORE_CONNECT_KEY_IDENTIFIER, APP_STORE_CONNECT_PRIVATE_KEY)
-        - certificate-credentials # iOS: Certificates (CERTIFICATE_PRIVATE_KEY, DEVELOPER_PORTAL_TEAM_ID)
       vars:
         PACKAGE_NAME: "com.jose.stitch.stitchApp"
-        APP_STORE_APP_ID: 1234567890 # Cambiar por el ID real de la app en App Store Connect
     triggering:
       events:
         - push
@@ -19,36 +15,36 @@ workflows:
           include: true
         - pattern: 'develop'
           include: true
-        - pattern: 'release/*'
-          include: true
     scripts:
-      - name: Get Flutter packages
+      - name: Configure Flutter and Get packages
         script: |
+          flutter config --no-enable-swift-package-manager
           flutter pub get
-      - name: Install iOS pods
-        script: |
-          cd ios && pod install
       - name: Build Android APK
         script: |
           flutter build apk --release
-      - name: Build iOS IPA
+      - name: Build iOS (Unsigned IPA)
         script: |
-          flutter build ipa --release --export-options-plist ios/export_options.plist
+          flutter build ios --release --no-codesign
+          echo "=== Contenido de build/ios/iphoneos ==="
+          ls -la build/ios/iphoneos || true
+          mkdir -p build/ios/ipa/Payload
+          echo "=== Copiando Runner.app ==="
+          cp -RL build/ios/iphoneos/Runner.app build/ios/ipa/Payload/
+          echo "=== Contenido de Payload ==="
+          ls -la build/ios/ipa/Payload || true
+          echo "=== Comprimiendo a IPA ==="
+          cd build/ios/ipa
+          zip -r GestorInventario.ipa Payload
+          echo "=== IPA Generado ==="
+          ls -lh GestorInventario.ipa || true
     artifacts:
       - build/app/outputs/flutter-apk/*.apk
-      - build/ios/ipa/*.ipa
-      - build/ios/ipa/Runner.ipa
-      - /tmp/xcodebuild_logs/*.log
+      - build/ios/ipa/GestorInventario.ipa
     publishing:
       email:
         recipients:
-          - admin@example.com # Cambiar por el correo del usuario
+          - 74934503@continental.edu.pe
         notify:
           success: true
           failure: true
-      app_store_connect:
-        api_key: $APP_STORE_CONNECT_PRIVATE_KEY
-        key_id: $APP_STORE_CONNECT_KEY_IDENTIFIER
-        issuer_id: $APP_STORE_CONNECT_ISSUER_ID
-        submit_to_testflight: true
-        submit_to_app_store: false
