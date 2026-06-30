@@ -68,7 +68,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       final authenticated = await _localAuth.authenticate(
         localizedReason: 'Autentícate con tu huella para iniciar sesión rápidamente',
         biometricOnly: true,
-        stickyAuth: true,
+        persistAcrossBackgrounding: true,
       );
 
       if (authenticated) {
