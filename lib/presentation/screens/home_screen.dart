@@ -207,7 +207,7 @@ class HomeScreen extends ConsumerWidget {
         'emoji': '🛍️',
       },
       {
-        'title': 'LOGÍSTICA DE ARRIBO',
+        'title': 'CÓMO LLEGAR A LA TIENDA',
         'subtitle': 'Ruta satelital y GPS de arribo',
         'icon': Icons.explore_rounded,
         'screen': MapaRutaScreen(usuarioId: userId),
