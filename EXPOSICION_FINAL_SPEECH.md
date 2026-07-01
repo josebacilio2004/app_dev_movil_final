@@ -1,103 +1,103 @@
-# 🎤 SPEECH COMPLETO DE EXPOSICIÓN: ECOINTEGRACIÓN DE ALY S.A.
-**Ecosistema:** Aplicación Móvil (Flutter) & Portal de Gestión (HTML/JS)  
-**Tiempo estimado total:** 15 minutos  
+# 🛠️ GUÍON DE EXPOSICIÓN AMIGABLE: ECOINTEGRACIÓN DE ALY S.A.
+**Ecosistema:** Aplicación para Celulares (Clientes) & Portal Web (Administración de la Tienda)  
+**Tono:** Claro, Comercial, Enfocado en Beneficios y Experiencia de Usuario  
+**Tiempo estimado:** 15 minutos  
 
 ---
 
 ## INTRODUCCIÓN GENERAL (1.5 minutos)
 **[Presenter 1]**  
-> *"Estimado docente y compañeros de clase, buenos días. Hoy tenemos el agrado de presentarles nuestro proyecto final titulado **Ecosistema Digital Aly S.A.**.  
+> *"Estimado profesor y compañeros, muy buenos días. Hoy queremos presentarles nuestro proyecto final: el **Ecosistema Digital Aly S.A.**, diseñado para Comercializadora Aly S.A., una ferretería industrial real de nuestra región.  
 >  
-> Comercializadora Aly S.A. es una empresa peruana real dedicada a la venta y distribución de herramientas industriales y materiales de construcción en la región centro del país. Identificamos que el sector ferretero sufre de tres grandes problemas: la imprecisión en las rutas de reparto, el retraso en las obras por falta de asesoría técnica inmediata y la desconexión entre la administración web y la aplicación del comprador.  
+> Comprar materiales de construcción suele ser complicado: las entregas se retrasan, las direcciones son difíciles de encontrar en obra y los clientes a veces compran herramientas sin saber si cabrán en sus espacios de trabajo.  
 >  
-> Para solucionar esto, hemos construido una solución de ingeniería de software integrada por dos grandes plataformas: una aplicación móvil interactiva desarrollada en **Flutter** para el cliente comprador, y una plataforma web administrativa independiente en **HTML/CSS/JS** conectada en tiempo real mediante **Cloud Firestore**. Este ecosistema incorpora Inteligencia Artificial generativa de Gemini, Geolocalización con Mapbox, Realidad Aumentada y lectura de sensores físicos de hardware."*
+> Para solucionar esto, creamos dos plataformas conectadas en tiempo real: una **aplicación móvil muy intuitiva** para que el cliente compre y use herramientas digitales en su celular, y una **página web administrativa** para que el equipo de la tienda controle las ventas, envíos e inventarios al instante. Hoy les mostraremos cómo funciona este sistema fácil de usar."*
 
 ---
 
-## 1. REGISTRO DE USUARIO E INICIO DE SESIÓN (1.5 minutos)
+## 1. REGISTRO DE USUARIO E INICIO DE SESIÓN RÁPIDO (1.5 minutos)
 **[Presenter 1]**  
-> *"Comencemos con el flujo de acceso de seguridad. La aplicación cuenta con una pantalla de Login premium adaptada a la identidad visual de la empresa.  
+> *"El acceso a nuestra aplicación es sumamente sencillo y seguro.  
 >  
-> * **Registro de Usuario (Sign Up):** Permite a nuevos usuarios registrarse especificando su DNI, correo electrónico y credenciales. Al registrarse, el sistema crea de forma atómica el perfil de usuario en la colección `/users` de Firestore asignándole por defecto el rol de `comprador`.  
-> * **Inicio de Sesión Inteligente (Sign In):** El login verifica las credenciales contra Firebase Auth y extrae dinámicamente el rol del usuario desde Firestore. Si el dispositivo cuenta con lector de huellas o reconocimiento facial, implementamos **autenticación biométrica mediante la librería Local Auth**, la cual encripta localmente las credenciales en `SharedPreferences` y las asocia con una clave única (`bio_enabled`), permitiendo accesos ultra rápidos y 100% seguros sin volver a escribir la contraseña."*
+> * **Registro de Cuenta:** Cualquier cliente nuevo puede registrarse ingresando sus datos básicos como su DNI y correo electrónico.  
+> * **Acceso con Huella Digital:** Para que el usuario no tenga que escribir su contraseña cada vez que abre la aplicación, implementamos el **acceso biométrico**. Es decir, el cliente puede ingresar de forma segura usando la huella digital o el reconocimiento facial de su celular, tal como desbloquea su propio teléfono."*
 
 ---
 
-## 2. CATÁLOGO INTELIGENTE Y CARRITO DE COMPRA (1.5 minutos)
+## 2. CATÁLOGO CON BÚSQUEDA POR VOZ Y CARRITO PRIVADO (1.5 minutos)
 **[Presenter 2]**  
-> *"Una vez autenticado, el usuario es redirigido directamente al **Catálogo de Productos**.  
+> *"Una vez dentro de la app, el cliente llega al **Catálogo de Herramientas**.  
 >  
-> * **Catálogo Dinámico:** Los productos se cargan directamente desde Firestore organizados por categorías (Herramientas manuales, eléctricas, materiales, tornillería, etc.). Incorporamos un **Buscador Asistido por Voz** mediante la API `speech_to_text`, ideal para que el obrero o carpintero dicte la herramienta que busca con las manos ocupadas.  
-> * **Carrito de Compra Privado:** Aislamos completamente la sesión en memoria. Mediante Riverpod, el `cartProvider` observa el `authStateProvider`. Esto garantiza que los productos agregados al carrito se almacenen de forma privada en el almacenamiento local bajo una clave única indexada por el UID del usuario (`cart_${userId}`). Al cerrar sesión o cambiar de cuenta, el carrito se limpia de inmediato para proteger los datos de compra entre distintos dispositivos compartidos."*
+> * **Buscador Asistido por Voz:** Pensando en los trabajadores de obra que suelen tener las manos ocupadas o sucias, añadimos un botón de micrófono. El usuario simplemente presiona el icono, dice en voz alta el nombre del producto (por ejemplo: *'cemento'* o *'taladro'*) y la aplicación lo busca automáticamente.  
+> * **Carrito de Compras Privado:** La seguridad de los datos es clave. Si compartes el celular con otro compañero de trabajo, al cerrar tu sesión, tu carrito de compras se limpia por completo en el dispositivo y se guarda de forma privada únicamente en tu cuenta. Así, las compras de los usuarios nunca se mezclan."*
 
 ---
 
-## 3. PASARELA DE PAGO Y FACTURACIÓN PDF (1.5 minutos)
+## 3. PASARELA DE PAGO INTERACTIVA Y BOLETA DIGITAL EN PDF (1.5 minutos)
 **[Presenter 2]**  
-> *"Cuando el usuario decide proceder al checkout, es guiado a nuestra **Pasarela de Pagos**:  
+> *"Al momento de pagar, la aplicación ofrece una experiencia visual premium:  
 >  
-> * **Pasarela Interactiva:** Cuenta con un formulario de tarjeta de crédito interactiva en 3D que gira automáticamente sobre su propio eje al posicionar el foco sobre el campo de CVV, dando un efecto visual sumamente pulido.  
-> * **Facturación Digital:** Al confirmarse la transacción simulada de la tarjeta con Firebase, la aplicación genera dinámicamente un comprobante de pago oficial en formato **PDF** en tiempo real. Esta boleta incluye el logo oficial de la empresa, el desglose exacto de cada producto comprado, su subtotal, el cálculo automático de impuestos (18% IGV) y el RUC oficial empresarial: **10432247657**, lista para descargarse en el dispositivo o enviarse a imprimir mediante la API nativa de impresión."*
+> * **Tarjeta 3D Interactiva:** El usuario llena los datos de su tarjeta de crédito sobre un modelo gráfico interactivo que gira automáticamente para mostrar el lado trasero cuando se va a ingresar el código de seguridad.  
+> * **Boleta Electrónica Formal:** Al confirmarse el pago, la app genera automáticamente una boleta digital en formato **PDF** con el logotipo de la empresa, el RUC oficial: **10432247657** y la lista detallada de los productos adquiridos. El cliente puede descargarla al celular o mandarla a imprimir directamente con un solo botón."*
 
 ---
 
-## 4. CÓMO LLEGAR A LA TIENDA Y GEOLOCALIZACIÓN (1.5 minutos)
+## 4. CÓMO LLEGAR Y AVISO DE LLEGADA POR GPS (1.5 minutos)
 **[Presenter 3]**  
-> *"Para los clientes que prefieren recoger sus materiales directamente, hemos implementado el módulo de **Geolocalización** integrado con **Mapbox**:  
+> *"Si el cliente decide recoger sus compras en la tienda física de Aly S.A., la app lo guía paso a paso:  
 >  
-> * **Ruta en Tiempo Real:** El mapa carga la ubicación en tiempo real del GPS del dispositivo y traza una ruta geodésica óptima hacia la tienda física de Comercializadora Aly.  
-> * **Geocerca de Arribo Inteligente:** Simulamos un perímetro o geocerca de seguridad de 500 y 200 metros alrededor de la tienda. Cuando el GPS detecta que el vehículo cruza este radio, la app dispara una **Notificación Local Push** informando al personal de almacén para que comience a despachar y preparar los materiales comprados, reduciendo los tiempos de espera del cliente a cero."*
+> * **Mapa de Navegación:** Mostramos un mapa GPS interactivo que calcula la ruta más rápida y el tiempo estimado de viaje desde la ubicación del usuario hasta la tienda.  
+> * **Alerta de Preparación de Pedido:** La aplicación cuenta con una función inteligente que detecta cuando el cliente está cerca de la tienda (a 500 o 200 metros). En ese instante, el sistema envía una alerta automática al personal del almacén para que comiencen a empaquetar los materiales. Así, cuando el cliente llega, su pedido ya está listo para llevar, sin colas ni demoras."*
 
 ---
 
-## 5. HERRAMIENTAS ADICIONALES: NIVELADOR DIGITAL Y MEDIDOR LÁSER AR (2 minutos)
+## 5. HERRAMIENTAS ADICIONALES: NIVELADOR DIGITAL Y DISEÑADOR AR (2 minutos)
 **[Presenter 3]**  
-> *"Añadimos valor disruptivo a la app con herramientas de campo interactivas:  
+> *"Transformamos el celular del cliente en una herramienta de trabajo con dos funciones innovadoras:  
 >  
-> * **Nivelador Digital Industrial:** Utiliza el sensor de acelerómetro de hardware para calcular los ángulos de inclinación (roll y pitch) del dispositivo en tiempo real. La interfaz simula un nivelador esmerilado con una burbuja que flota sobre la cuadrícula. Al lograr una alineación perfecta (0.0° con un margen de 0.8°), la app emite una **vibración háptica de confirmación** y brilla en verde.  
-> * **Visualizador AR y Medidor Láser:** Permite tomar una fotografía del muro o espacio de trabajo de la obra. Sobre esta foto, el usuario puede proyectar las herramientas del catálogo en 3D, rotándolas, escalándolas y ajustando su inclinación física mediante el acelerómetro para comprobar visualmente si caben o si la alineación del montaje es la correcta antes de comprarlas."*
+> * **Nivelador Digital de Obra:** Es la versión digital del nivel de burbuja tradicional. Usando los sensores de movimiento internos del teléfono, mide la inclinación de cualquier superficie en tiempo real. Cuando el celular está completamente recto, la pantalla brilla en verde y **el teléfono emite una vibración**, avisándole al usuario que la superficie está perfectamente nivelada.  
+> * **Proyector en Cámara (Realidad Aumentada):** El usuario puede tomar una foto del espacio de su casa u obra donde instalará una viga, estante o taladro. Luego, puede arrastrar imágenes de los productos de Aly sobre la foto, rotarlos y escalarlos con los dedos para ver exactamente cómo quedarán estéticamente y si cabrán en la pared antes de comprarlos."*
 
 ---
 
-## 6. ASISTENTE CHATBOT EXPERTO IA (GEMINI) (1.5 minutos)
+## 6. ASISTENTE CON INTELIGENCIA ARTIFICIAL (GEMINI IA) (1.5 minutos)
 **[Presenter 1]**  
-> *"En el núcleo de la asistencia técnica, incorporamos a **Gemini de Google**.  
+> *"Incorporamos la tecnología de Inteligencia Artificial de Gemini para brindar asesoría especializada:  
 >  
-> * **Chatbot Técnico:** Este bot no es un canal genérico de ayuda. Cuenta con instrucciones contextuales de ingeniería para actuar como un asesor técnico de obra. Puede calcular dosificaciones exactas de cemento y arena fina, recomendar herramientas según la resistencia del material o explicar fichas técnicas industriales.  
-> * **Memoria Persistente y Privada:** El historial de la conversación se almacena localmente utilizando claves personalizadas por usuario (`gemini_chat_history_${userId}`). Si otro usuario inicia sesión en el mismo dispositivo, sus conversaciones previas son inaccesibles y privadas."*
+> * **Asistente Ferretero Experto:** Este chatbot está entrenado para responder preguntas complejas de construcción. Puede calcular cuántas bolsas de cemento necesitas para tarrajear una pared de ciertas dimensiones, sugerir herramientas o dar consejos de seguridad industrial en segundos.  
+> * **Historial Privado:** Las conversaciones de cada cuenta están protegidas y separadas. Ningún otro usuario podrá ver lo que conversaste con la inteligencia artificial en el mismo teléfono."*
 
 ---
 
 ## 7. SEGUIMIENTO DE DELIVERY EN VIVO (1.5 minutos)
 **[Presenter 2]**  
-> *"Para compras a domicilio, implementamos el **Seguimiento Logístico**:  
+> *"Si el cliente solicita despacho a domicilio, el sistema de reparto es totalmente transparente:  
 >  
-> * **Tracking Activo:** En el mapa interactivo se traza la ruta desde la tienda al pin GPS que el cliente marcó en la pasarela. Se inicializa un hilo simulador en segundo plano que avanza geográficamente simulando el camión de despacho en tiempo real.  
-> * **Sincronización a Firestore:** El camión actualiza periódicamente sus coordenadas GPS en la colección `geolocalizacion_rutas`. Cuando el simulador detecta que el camión llega a las coordenadas exactas de la obra, actualiza de forma atómica el estado del pedido en la base de datos de `pendiente` a `entregado` en tiempo real, disparando notificaciones automáticas en el panel."*
+> * **Camión de Reparto en Vivo:** El cliente puede abrir el mapa y ver en tiempo real el desplazamiento del camión de delivery que lleva su pedido hacia su obra.  
+> * **Confirmación de Entrega Automática:** Cuando el camión llega a las coordenadas de la dirección del cliente, el sistema detecta la llegada y actualiza automáticamente el estado de la compra a *'Entregado'*, enviando un aviso de conformidad tanto al cliente como a la tienda."*
 
 ---
 
-## 8. CONFIGURACIÓN, COMENTARIOS Y SEGURIDAD (1.5 minutos)
+## 8. NOTIFICACIONES, CONFIGURACIÓN Y MODO SIN INTERNET (1.5 minutos)
 **[Presenter 2]**  
-> *"Por el lado de usabilidad y políticas generales:  
+> *"Para garantizar que la aplicación sea robusta ante cualquier situación cotidiana:  
 >  
-> * **Bandeja de Notificaciones:** Cuenta con un historial completo de notificaciones guardado de forma persistente para que el usuario nunca pierda un aviso de facturación o entrega.  
-> * **Configuraciones y Modo Offline:** Permite al usuario activar/desactivar notificaciones y alternar entre tema oscuro e industrial. La app detecta pérdidas de conexión a Internet y despliega un banner superior de alerta offline.  
-> * **Reseñas de Productos:** Los usuarios pueden emitir calificaciones y comentarios sobre los productos del catálogo directamente a Firestore.  
-> * **Seguridad Integral:** El backend implementa **Firestore Rules** protegiendo los datos confidenciales e impidiendo lecturas no autorizadas. Además, cada movimiento en el stock de inventario se registra en una colección de auditoría llamada `/inventario_movimientos` indicando el responsable y los valores anteriores y nuevos de stock."*
+> * **Historial de Notificaciones:** Una bandeja de entrada donde se guardan todas las alertas y avisos de entrega para revisarlos cuando el usuario lo desee.  
+> * **Modo Sin Conexión (Offline):** Sabemos que en las zonas de construcción la señal de internet puede fallar. Si la aplicación pierde conexión, muestra un aviso amigable y sigue funcionando con los datos que ya tenía cargados, guardando las acciones para sincronizarlas cuando regrese la señal.  
+> * **Reseñas de Herramientas:** Los clientes pueden calificar con estrellas y comentar qué les pareció cada herramienta para guiar a otros compradores."*
 
 ---
 
-## 9. PLATAFORMA WEB INDEPENDIENTE DE GESTIÓN (1.5 minutos)
+## 9. PORTAL WEB DE CONTROL PARA LA TIENDA Y DASHBOARDS (1.5 minutos)
 **[Presenter 3]**  
-> *"Para cerrar el círculo de administración, desarrollamos el **Portal Web Administrativo** (HTML/CSS/JS) conectado en tiempo real a la misma base de datos.  
+> *"Por último, el equipo de Comercializadora Aly S.A. administra todo desde su **Página Web de Control**:  
 >  
-> * **Modificador de Catálogo & Gestión de Inventario:** Permite a los operadores agregar productos, editar imágenes base64 o ajustar stocks en tiempo real. Cualquier cambio se ve reflejado instantáneamente en la aplicación móvil de los clientes.  
-> * **Gestión de Pedidos en Vivo:** Un panel dinámico que lista los pedidos ingresados por los compradores móviles, permitiendo a los operadores ver las coordenadas geográficas exactas marcadas en el mapa y cambiar el estado del delivery en tiempo real.  
-> * **Dashboards con Estética Industrial:** Visualización financiera premium mediante gráficos interactivos de ventas, ganancias e historial de adquisición para inversores y administradores, diseñados con estética de vidrio esmerilado translúcido (Glassmorphism)."*
+> * **Gestor del Catálogo e Inventario:** Los operadores de la tienda pueden cambiar precios, agregar nuevos productos y actualizar los stocks disponibles de manera visual y rápida.  
+> * **Control de Pedidos en Vivo:** Ven en un mapa interactivo las direcciones de entrega marcadas por los clientes y coordinan la salida de los camiones de despacho.  
+> * **Gráficos Financieros Visuales:** Los administradores e inversores de la empresa tienen acceso a gráficos dinámicos que muestran el historial de ventas, las ganancias acumuladas y el flujo financiero mensual en un diseño moderno y elegante."*
 
 ---
 
 ## CIERRE Y CONCLUSIÓN (0.5 minutos)
 **[Presenter 1]**  
-> *"Como hemos visto, el **Ecosistema Digital Aly S.A.** no es una aplicación aislada, sino una plataforma empresarial integral que conecta logística, compras, realidad aumentada, inteligencia artificial y administración financiera en tiempo real, aportando valor de negocio real a la empresa y garantizando una experiencia de usuario sobresaliente. Muchas gracias por su atención. Quedamos atentos a sus preguntas."*
+> *"En conclusión, el **Ecosistema Digital Aly S.A.** moderniza el proceso de compra de herramientas industriales, haciendo que la logística sea transparente para el cliente y la gestión de la tienda sea sumamente sencilla y eficiente. Muchas gracias por su tiempo. Quedamos abiertos a cualquier consulta."*
