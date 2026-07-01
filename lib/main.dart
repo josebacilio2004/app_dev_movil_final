@@ -22,29 +22,49 @@ void main() async {
   await GoogleDriveService.loadPersistedUrl();
   
   // Inicialización de Localización para evitar errores de Intl en Web
-  await initializeDateFormatting('es_PE', null);
+  try {
+    await initializeDateFormatting('es_PE', null);
+  } catch (e) {
+    debugPrint('⚠️ Error al inicializar formato de fecha (intl): $e');
+  }
 
   // Inicializar Notificaciones Locales
-  await NotificationService().init();
+  try {
+    await NotificationService().init();
+  } catch (e) {
+    debugPrint('⚠️ Error al inicializar Notificaciones Locales: $e');
+  }
   
   try {
-    await Firebase.initializeApp(
-      options: DefaultFirebaseOptions.currentPlatform,
-    );
+    // Inicializar Firebase solo si no ha sido inicializado previamente para evitar DuplicateAppException
+    if (Firebase.apps.isEmpty) {
+      await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform,
+      );
+    }
 
-    // Configurar persistencia caché offline para Firestore
-    FirebaseFirestore.instance.settings = const Settings(
-      persistenceEnabled: true,
-      cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
-    );
+    // Configurar persistencia caché offline para Firestore de forma segura
+    try {
+      FirebaseFirestore.instance.settings = const Settings(
+        persistenceEnabled: true,
+        cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
+      );
+    } catch (firestoreSettingsError) {
+      // Ocurre si Firestore ya se usó/inicializó antes de setear las configuraciones
+      debugPrint('ℹ️ Firestore settings ya configurados o no se pudieron modificar: $firestoreSettingsError');
+    }
     
     // Inicializar Notificaciones Push (FCM)
-    await PushNotificationService().init();
+    try {
+      await PushNotificationService().init();
+    } catch (fcmError) {
+      debugPrint('⚠️ Error al inicializar FCM Push Notifications: $fcmError');
+    }
     
     // Ejecutar seeders en segundo plano sin bloquear el hilo principal de renderizado
     _runSeedersIfNeeded();
   } catch (e) {
-    debugPrint('Firebase initialization failed: $e');
+    debugPrint('❌ Firebase initialization failed: $e');
   }
 
   runApp(
