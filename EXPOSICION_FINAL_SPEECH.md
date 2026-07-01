@@ -9,9 +9,9 @@
 **[Presenter 1]**  
 > *"Estimado profesor y compañeros, muy buenos días. Hoy queremos presentarles nuestro proyecto final: el **Ecosistema Digital Aly S.A.**, diseñado para Comercializadora Aly S.A., una ferretería industrial real de nuestra región.  
 >  
-> Comprar materiales de construcción suele ser complicado: las entregas se retrasan, las direcciones son difíciles de encontrar en obra y los clientes a veces compran herramientas sin saber si cabrán en sus espacios de trabajo.  
+> Permítanme iniciar con una pregunta: ¿cuántas veces hemos visto una obra de construcción paralizada porque el camión con los materiales no llega y nadie sabe dónde está? ¿O cuántas horas pierde un maestro de obra tratando de calcular a mano la dosificación exacta para un vaciado de concreto? Las ferreterías tradicionales siguen operando como hace 20 años: llamadas eternas, direcciones imprecisas y nula asesoría técnica en el campo de trabajo. Este desorden cuesta miles de soles en pérdidas para las constructoras y daña la reputación de los distribuidores.  
 >  
-> Para solucionar esto, creamos dos plataformas conectadas en tiempo real: una **aplicación móvil muy intuitiva** para que el cliente compre y use herramientas digitales en su celular, y una **página web administrativa** para que el equipo de la tienda controle las ventas, envíos e inventarios al instante. Hoy les mostraremos cómo funciona este sistema fácil de usar."*
+> Para resolver este problema de raíz, hemos diseñado **Aly Móvil y Aly Web**, un ecosistema digital inteligente que conecta la obra con la tienda en tiempo real. Reducimos la incertidumbre logística mediante seguimiento por GPS, eliminamos las colas de recogida y colocamos a un ingeniero experto con Inteligencia Artificial directamente en el bolsillo del constructor. Esto no es solo software; es rentabilidad, eficiencia y el futuro del sector industrial. Hoy les mostraremos cómo funciona este sistema revolucionario."*
 
 ---
 
